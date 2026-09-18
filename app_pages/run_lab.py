@@ -9,7 +9,7 @@ from services.console_context import console_context, safe
 from services.workflow import assess_evidence, diagnose_snapshot, inspect_evidence
 
 
-settings, catalogue, _ = console_context()
+settings, catalogue, client_id, _ = console_context()
 
 render_hero(
     "Guided operation",
@@ -37,7 +37,10 @@ if st.button(
         )
 
 st.subheader("2 · Assess and canonicalise")
-runs = safe(catalogue.list_runs, [])
+runs = (
+    safe(lambda: catalogue.list_runs(client_id), [])
+    if client_id else []
+)
 awaiting = [item for item in runs if item.get("status") == "awaiting_assessment"]
 with st.form("assess-form"):
     run_id = st.selectbox(
@@ -66,7 +69,10 @@ if submitted:
         )
 
 st.subheader("3 · Diagnose")
-snapshots = safe(catalogue.list_snapshots, [])
+snapshots = (
+    safe(lambda: catalogue.list_snapshots(client_id), [])
+    if client_id else []
+)
 if not snapshots:
     st.info("Complete an assessment before running diagnosis.")
     st.stop()
@@ -77,7 +83,10 @@ options = {
 }
 target = st.selectbox("Canonical observation", list(options), key="diagnosis_snapshot")
 fitness = safe(
-    lambda: catalogue.snapshot_bundle(options[target])["fitness"],
+    lambda: catalogue.snapshot_bundle(
+        options[target],
+        client_id,
+    )["fitness"],
     {},
 )
 not_fit = [

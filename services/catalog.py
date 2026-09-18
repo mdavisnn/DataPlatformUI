@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path, PurePosixPath
 from typing import Any
 
@@ -10,6 +11,28 @@ import pandas as pd
 
 from config.settings import Settings
 from services.platform_reader import MetadataReadError
+
+
+CLIENT_ID_PATTERN = re.compile(r"[a-z0-9][a-z0-9_-]{0,63}")
+
+
+def validate_client_id(value: Any) -> str:
+    """Return a client ID matching DataPlatform's metadata contract."""
+
+    client_id = str(value or "").strip()
+    if not CLIENT_ID_PATTERN.fullmatch(client_id):
+        raise ValueError(
+            "Client ID must be 1-64 lowercase letters, numbers, hyphens or "
+            "underscores, and must start with a letter or number"
+        )
+    return client_id
+
+
+def _metadata_client_id(document: dict[str, Any]) -> str | None:
+    try:
+        return validate_client_id(document.get("client_id"))
+    except ValueError:
+        return None
 
 
 def _ids_from_keys(keys: list[str], collection: str, artifact: str) -> list[str]:
@@ -69,20 +92,36 @@ class Catalogue:
             if path.is_file()
         )
 
-    def list_runs(self) -> list[dict[str, Any]]:
+    def list_runs(self, client_id: str | None = None) -> list[dict[str, Any]]:
+        selected_client = validate_client_id(client_id) if client_id else None
         keys = self._list_files("metadata", prefix="runs")
         run_ids = _ids_from_keys(keys, "runs", "run_summary.json")
-        return [
+        runs = [
             self._read_json("metadata", f"runs/{run_id}/run_summary.json")
             for run_id in reversed(run_ids)
         ]
+        if selected_client:
+            runs = [
+                item for item in runs
+                if _metadata_client_id(item) == selected_client
+            ]
+        return runs
 
-    def list_snapshots(self) -> list[dict[str, Any]]:
+    def list_snapshots(
+        self,
+        client_id: str | None = None,
+    ) -> list[dict[str, Any]]:
+        selected_client = validate_client_id(client_id) if client_id else None
         keys = self._list_files("metadata", prefix="snapshots")
         snapshots = [
             self._read_json("metadata", f"snapshots/{snapshot_id}/snapshot.json")
             for snapshot_id in _ids_from_keys(keys, "snapshots", "snapshot.json")
         ]
+        if selected_client:
+            snapshots = [
+                item for item in snapshots
+                if _metadata_client_id(item) == selected_client
+            ]
         return sorted(
             snapshots,
             key=lambda item: (
@@ -92,11 +131,31 @@ class Catalogue:
             reverse=True,
         )
 
-    def snapshot_bundle(self, snapshot_id: str) -> dict[str, dict[str, Any]]:
+    def list_clients(self) -> list[str]:
+        """Return valid client IDs represented by runs or snapshots."""
+
+        documents = [*self.list_runs(), *self.list_snapshots()]
+        return sorted({
+            client_id
+            for item in documents
+            if (client_id := _metadata_client_id(item)) is not None
+        })
+
+    def snapshot_bundle(
+        self,
+        snapshot_id: str,
+        client_id: str | None = None,
+    ) -> dict[str, dict[str, Any]]:
         base = f"snapshots/{snapshot_id}"
-        bundle = {
-            "snapshot": self._read_json("metadata", f"{base}/snapshot.json")
-        }
+        snapshot = self._read_json("metadata", f"{base}/snapshot.json")
+        if (
+            client_id
+            and _metadata_client_id(snapshot) != validate_client_id(client_id)
+        ):
+            raise ValueError(
+                f"Snapshot {snapshot_id} does not belong to client {client_id}"
+            )
+        bundle = {"snapshot": snapshot}
         for name in ("fitness", "diagnosis", "findings"):
             try:
                 bundle[name] = self._read_json(
@@ -106,21 +165,83 @@ class Catalogue:
                 bundle[name] = {}
         return bundle
 
-    def list_products(self, collection: str, artifact: str) -> list[dict[str, Any]]:
+    def list_products(
+        self,
+        collection: str,
+        artifact: str,
+        client_id: str | None = None,
+    ) -> list[dict[str, Any]]:
+        selected_client = validate_client_id(client_id) if client_id else None
         keys = self._list_files("metadata", prefix=collection)
-        return [
+        products = [
             self._read_json("metadata", f"{collection}/{item_id}/{artifact}")
             for item_id in reversed(_ids_from_keys(keys, collection, artifact))
         ]
+        if selected_client:
+            products = [
+                item for item in products
+                if _metadata_client_id(item) == selected_client
+            ]
+        return products
 
-    def list_comparisons(self) -> list[dict[str, Any]]:
-        return self.list_products("comparisons", "comparison.json")
+    def list_comparisons(
+        self,
+        client_id: str | None = None,
+    ) -> list[dict[str, Any]]:
+        return self.list_products(
+            "comparisons",
+            "comparison.json",
+            client_id,
+        )
 
-    def list_trends(self) -> list[dict[str, Any]]:
-        return self.list_products("trends", "trend.json")
+    def list_trends(
+        self,
+        client_id: str | None = None,
+    ) -> list[dict[str, Any]]:
+        return self.list_products("trends", "trend.json", client_id)
 
-    def list_interpretations(self) -> list[dict[str, Any]]:
-        return self.list_products("interpretations", "session.json")
+    def _interpretation_client_id(
+        self,
+        session: dict[str, Any],
+    ) -> str | None:
+        direct_client = _metadata_client_id(session)
+        if direct_client:
+            return direct_client
+        source_type = session.get("source_type")
+        source_id = session.get("source_id")
+        source_contracts = {
+            "snapshot": ("snapshots", "snapshot.json"),
+            "comparison": ("comparisons", "comparison.json"),
+            "trend": ("trends", "trend.json"),
+        }
+        if source_type not in source_contracts or not source_id:
+            return None
+        collection, artifact = source_contracts[source_type]
+        try:
+            source = self._read_json(
+                "metadata",
+                f"{collection}/{source_id}/{artifact}",
+            )
+        except FileNotFoundError:
+            return None
+        return _metadata_client_id(source)
+
+    def list_interpretations(
+        self,
+        client_id: str | None = None,
+    ) -> list[dict[str, Any]]:
+        selected_client = validate_client_id(client_id) if client_id else None
+        sessions = self.list_products("interpretations", "session.json")
+        scoped_sessions = []
+        for session in sessions:
+            source_client = self._interpretation_client_id(session)
+            if selected_client and source_client != selected_client:
+                continue
+            enriched = dict(session)
+            if source_client:
+                enriched["client_id"] = source_client
+            scoped_sessions.append(enriched)
+        return scoped_sessions
 
     def read_artifact(self, reference: str) -> str:
         path = PurePosixPath(reference)

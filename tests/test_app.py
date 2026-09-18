@@ -4,16 +4,18 @@ from pathlib import Path
 from streamlit.testing.v1 import AppTest
 
 
-def test_workspace_renders_governed_snapshot(tmp_path, monkeypatch):
-    snapshot_id = "snapshot-test"
+def write_snapshot(tmp_path, client_id, snapshot_id, observation_date):
     snapshot_root = tmp_path / "local-data" / "metadata" / "snapshots" / snapshot_id
     snapshot_root.mkdir(parents=True)
     (snapshot_root / "snapshot.json").write_text(json.dumps({
+        "client_id": client_id,
         "snapshot_id": snapshot_id,
-        "observation_date": "2026-09-01",
+        "observation_date": observation_date,
         "datasets": {"projects": "projects.csv"},
     }), encoding="utf-8")
     (snapshot_root / "fitness.json").write_text(json.dumps({
+        "client_id": client_id,
+        "snapshot_id": snapshot_id,
         "capabilities": {"schedule": {
             "status": "fit",
             "blocking_conditions": [],
@@ -22,6 +24,8 @@ def test_workspace_renders_governed_snapshot(tmp_path, monkeypatch):
         }}
     }), encoding="utf-8")
     (snapshot_root / "findings.json").write_text(json.dumps({
+        "client_id": client_id,
+        "snapshot_id": snapshot_id,
         "findings": [{
             "finding_id": "SCH-1",
             "domain": "schedule",
@@ -34,6 +38,11 @@ def test_workspace_renders_governed_snapshot(tmp_path, monkeypatch):
             "supporting_artifacts": [],
         }]
     }), encoding="utf-8")
+
+
+def test_workspace_renders_governed_snapshot(tmp_path, monkeypatch):
+    snapshot_id = "snapshot-test"
+    write_snapshot(tmp_path, "client-001", snapshot_id, "2026-09-01")
     monkeypatch.setenv("DATALAB_PLATFORM_PATH", str(tmp_path))
     monkeypatch.delenv("DATA_PLATFORM_STORAGE_ROOT", raising=False)
 
@@ -53,3 +62,37 @@ def test_workspace_renders_governed_snapshot(tmp_path, monkeypatch):
     ):
         app.switch_page(page).run()
         assert not app.exception, page
+
+
+def test_client_selection_scopes_observations(tmp_path, monkeypatch):
+    write_snapshot(tmp_path, "alpha", "snapshot-alpha", "2026-09-01")
+    write_snapshot(tmp_path, "alpha", "snapshot-alpha-old", "2026-08-01")
+    write_snapshot(tmp_path, "beta", "snapshot-beta", "2026-09-01")
+    monkeypatch.setenv("DATALAB_PLATFORM_PATH", str(tmp_path))
+    monkeypatch.delenv("DATA_PLATFORM_STORAGE_ROOT", raising=False)
+
+    app_path = Path(__file__).parents[1] / "app.py"
+    app = AppTest.from_file(str(app_path), default_timeout=10).run()
+
+    assert not app.exception
+    assert app.session_state["selected_client_id"] == "alpha"
+    assert app.session_state["selected_snapshot_id"] == "snapshot-alpha"
+
+    app.selectbox(key="observation_selector_alpha").select(
+        "2026-08-01 | snapshot-alpha-old"
+    ).run()
+    assert app.session_state["selected_snapshot_id"] == "snapshot-alpha-old"
+
+    app.selectbox(key="client_selector").select("beta").run()
+
+    assert not app.exception
+    assert app.session_state["selected_client_id"] == "beta"
+    assert app.session_state["selected_snapshot_id"] == "snapshot-beta"
+    assert app.selectbox(key="observation_selector_beta").options == [
+        "2026-09-01 | snapshot-beta"
+    ]
+
+    app.selectbox(key="client_selector").select("alpha").run()
+
+    assert app.session_state["selected_client_id"] == "alpha"
+    assert app.session_state["selected_snapshot_id"] == "snapshot-alpha"

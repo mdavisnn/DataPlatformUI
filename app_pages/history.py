@@ -7,7 +7,7 @@ from services.console_context import console_context, governed_reference, safe
 from services.platform_reader import MetadataReadError
 
 
-_, catalogue, _ = console_context()
+_, catalogue, client_id, _ = console_context()
 
 render_hero(
     "Compare & trend",
@@ -16,8 +16,14 @@ render_hero(
     icon=":material/timeline:",
 )
 
-comparisons = safe(catalogue.list_comparisons, [])
-trends = safe(catalogue.list_trends, [])
+comparisons = (
+    safe(lambda: catalogue.list_comparisons(client_id), [])
+    if client_id else []
+)
+trends = (
+    safe(lambda: catalogue.list_trends(client_id), [])
+    if client_id else []
+)
 comparison_tab, trend_tab = st.tabs(
     ["Two-observation comparison", "Trend window"], on_change="rerun"
 )

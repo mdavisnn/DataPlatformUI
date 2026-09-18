@@ -8,7 +8,7 @@ from services.catalog import flatten_fitness
 from services.console_context import console_context
 
 
-_, catalogue, snapshot = console_context()
+_, catalogue, client_id, snapshot = console_context()
 
 render_hero(
     "Understand & assess",
@@ -21,7 +21,7 @@ if not snapshot:
     st.info("No assessed observation is available.")
     st.stop()
 
-bundle = catalogue.snapshot_bundle(snapshot["snapshot_id"])
+bundle = catalogue.snapshot_bundle(snapshot["snapshot_id"], client_id)
 manifest = bundle["snapshot"]
 render_metric_row([
     ("Source files", len(manifest.get("source_files", []))),

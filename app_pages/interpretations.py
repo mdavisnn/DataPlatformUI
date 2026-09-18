@@ -6,7 +6,7 @@ from components.console import render_hero, status_badge
 from services.console_context import console_context, safe
 
 
-_, catalogue, _ = console_context()
+_, catalogue, client_id, _ = console_context()
 
 render_hero(
     "Interpret",
@@ -15,7 +15,10 @@ render_hero(
     icon=":material/psychology:",
 )
 
-sessions = safe(catalogue.list_interpretations, [])
+sessions = (
+    safe(lambda: catalogue.list_interpretations(client_id), [])
+    if client_id else []
+)
 if not sessions:
     st.info("No recorded interpretations are available yet.")
     st.stop()

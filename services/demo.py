@@ -8,6 +8,7 @@ from pathlib import Path
 from config.settings import Settings
 
 
+CLIENT_ID = "demo-ui"
 SNAPSHOT_ID = "demo-2026-08-31"
 
 
@@ -30,6 +31,7 @@ def main(settings: Settings | None = None) -> int:
     curated = settings.storage_root / "curated"
     run_id = "demo-run-001"
     _write_json(metadata, f"runs/{run_id}/run_summary.json", {
+        "client_id": CLIENT_ID,
         "run_id": run_id,
         "status": "assessed",
         "profile_status": "success",
@@ -46,6 +48,7 @@ def main(settings: Settings | None = None) -> int:
         "notes": ["Synthetic demonstration evidence."],
     })
     _write_json(metadata, f"snapshots/{SNAPSHOT_ID}/snapshot.json", {
+        "client_id": CLIENT_ID,
         "snapshot_id": SNAPSHOT_ID,
         "run_id": run_id,
         "observation_date": "2026-08-31",
@@ -82,6 +85,7 @@ def main(settings: Settings | None = None) -> int:
         },
     }
     _write_json(metadata, f"snapshots/{SNAPSHOT_ID}/fitness.json", {
+        "client_id": CLIENT_ID,
         "snapshot_id": SNAPSHOT_ID,
         "capabilities": capabilities,
     })
@@ -130,11 +134,13 @@ def main(settings: Settings | None = None) -> int:
         },
     ]
     _write_json(metadata, f"snapshots/{SNAPSHOT_ID}/findings.json", {
+        "client_id": CLIENT_ID,
         "snapshot_id": SNAPSHOT_ID,
         "observation_date": "2026-08-31",
         "findings": findings,
     })
     _write_json(metadata, f"snapshots/{SNAPSHOT_ID}/diagnosis.json", {
+        "client_id": CLIENT_ID,
         "snapshot_id": SNAPSHOT_ID,
         "stage": "diagnosis",
         "execution_status": "completed_with_limitations",
@@ -152,7 +158,7 @@ def main(settings: Settings | None = None) -> int:
         f"snapshots/{SNAPSHOT_ID}/resource/resource_conflicts.csv",
         "ResourceID,Period,AllocationPercent,ExcessPercent\nRES-001,2026-09,165,65\nRES-003,2026-09,135,35\n",
     )
-    print(f"Synthetic console demo created: {SNAPSHOT_ID}")
+    print(f"Synthetic console demo created for {CLIENT_ID}: {SNAPSHOT_ID}")
     return 0
 
 

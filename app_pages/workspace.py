@@ -6,7 +6,7 @@ from components.console import render_finding, render_hero, render_metric_row
 from services.console_context import console_context
 
 
-_, catalogue, snapshot = console_context()
+_, catalogue, client_id, snapshot = console_context()
 
 render_hero(
     "Delivery intelligence · Data Lab",
@@ -38,7 +38,7 @@ if not snapshot:
     )
     st.stop()
 
-bundle = catalogue.snapshot_bundle(snapshot["snapshot_id"])
+bundle = catalogue.snapshot_bundle(snapshot["snapshot_id"], client_id)
 findings = bundle["findings"].get("findings", [])
 fitness = bundle["fitness"].get("capabilities", {})
 render_metric_row([

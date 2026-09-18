@@ -17,8 +17,9 @@ deterministic evidence.
 
 ## Current status
 
-The Review pages can read the current DataPlatform snapshot, fitness, Finding,
-comparison, trend and interpretation metadata.
+The sidebar first selects a client, then an observation belonging to that
+client. Review pages scope runs, snapshots, comparisons, trends and
+interpretations to the selected `client_id` before displaying them.
 
 The **Run the lab** page is still a prototype. Its inspection control does not
 yet pass the required `client_id`, and it does not run staged-file ingestion.
@@ -116,8 +117,8 @@ python -m lab.assess --run-id <run_id> --observation-date <YYYY-MM-DD>
 python -m lab.diagnose --snapshot-id <snapshot_id>
 ```
 
-Refresh the UI after the commands complete. The resulting observation will be
-available from the sidebar.
+Refresh the UI after the commands complete. Select the client and then the
+resulting observation from the sidebar.
 
 ## Console pages
 
@@ -147,10 +148,9 @@ Prepare and record a human-authored interpretation with `lab.interpret`. See
 
 ## Synthetic review data
 
-`python -m services.demo` creates a fixed, review-only UI fixture. It predates
-the complete client-aware v2 contract and must not be treated as a genuine
-DataPlatform run, preserved observation or comparison source. Never point it at
-a client evidence store.
+`python -m services.demo` creates a fixed, review-only UI fixture for the
+synthetic client `demo-ui`. It is not a genuine DataPlatform run, preserved
+observation or comparison source. Never point it at a client evidence store.
 
 ## Tests
 
@@ -163,7 +163,8 @@ a client evidence store.
 The console is local and consultant-facing. It does not provide authentication,
 authorisation, cloud storage, background jobs, workflow orchestration or
 production deployment. DataPlatform enforces client identity and historical
-comparability; client-filtered UI navigation is still planned.
+comparability. UI client filtering keeps review state coherent, but it is not
+an authentication or authorisation boundary.
 
 See [USER_GUIDE.md](USER_GUIDE.md) for operating instructions and
 [docs/console.md](docs/console.md) for the release boundary.

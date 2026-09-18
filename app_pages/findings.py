@@ -8,7 +8,7 @@ from services.console_context import console_context
 from services.platform_reader import MetadataReadError
 
 
-_, catalogue, snapshot = console_context()
+_, catalogue, client_id, snapshot = console_context()
 
 render_hero(
     "Diagnose",
@@ -21,7 +21,7 @@ if not snapshot:
     st.info("No diagnosed observation is available.")
     st.stop()
 
-bundle = catalogue.snapshot_bundle(snapshot["snapshot_id"])
+bundle = catalogue.snapshot_bundle(snapshot["snapshot_id"], client_id)
 findings = bundle["findings"].get("findings", [])
 frame = findings_frame(bundle["findings"])
 if frame.empty:

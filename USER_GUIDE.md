@@ -128,18 +128,13 @@ Refresh the browser after creating new DataPlatform products.
 
 ## 5. Select and review an observation
 
-Use the **Observation** selector in the sidebar. Each option contains the
-business observation date and `snapshot_id`.
+Use the **Client** selector in the sidebar first. The **Observation** selector
+then shows only snapshots belonging to that `client_id`; each option contains
+the business observation date and `snapshot_id`.
 
-The current UI does not yet provide a client selector. If the storage root
-contains more than one client, confirm the selected snapshot's `client_id` in:
-
-```text
-metadata/snapshots/<snapshot_id>/snapshot.json
-```
-
-Until client-filtered navigation is implemented, use a single-client or
-disposable review store when operating through the UI.
+Changing client clears the previous observation selection and selects that
+client's most recent available observation. Runs, comparisons, trends and
+interpretations shown elsewhere in the console are filtered to the same client.
 
 ### Workspace
 
@@ -246,8 +241,9 @@ workflow in the current release.
 ```
 
 This creates a fixed, review-only UI fixture. It predates the complete
-client-aware v2 contract and is not suitable for preservation, comparison or
-backend workflow testing. Never run it against a client evidence store.
+v2 evidence model, is assigned to the synthetic client `demo-ui`, and is not
+suitable for preservation, comparison or backend workflow testing. Never run
+it against a client evidence store.
 
 ## Troubleshooting
 
@@ -287,4 +283,5 @@ or `metadata`. The UI rejects paths that escape governed storage.
 Review pages are read-only. DataPlatform commands create governed evidence and
 metadata. The UI does not modify raw source evidence, calculate Findings or
 produce AI interpretations. It is a local prototype without authentication,
-authorisation or production deployment controls.
+authorisation or production deployment controls. Client selection scopes the
+local review experience; it is not an access-control mechanism.
