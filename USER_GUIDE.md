@@ -1,12 +1,11 @@
 # DataPlatformUI user guide
 
-This guide covers local setup, reviewing governed diagnostic products, and using
-the guided DataPlatform commands.
+This guide explains how to prepare client evidence in DataPlatform and review
+the resulting governed products in DataPlatformUI.
 
 ## 1. Prepare the UI
 
-Open PowerShell in the DataPlatformUI repository and create its virtual
-environment:
+Open PowerShell in the DataPlatformUI repository:
 
 ```powershell
 python -m venv .venv
@@ -15,188 +14,277 @@ python -m pip install -r requirements.txt
 Copy-Item .env.example .env
 ```
 
-Edit `.env` so `DATALAB_PLATFORM_PATH` identifies the DataPlatform repository:
+Set the DataPlatform repository in `.env`:
 
 ```dotenv
 DATALAB_PLATFORM_PATH=D:\Data Lab\DataPlatform
 ```
 
-DataPlatform normally stores governed products in
-`<DataPlatform>/local-data`. If `DATA_PLATFORM_STORAGE_ROOT` is set when running
-DataPlatform, give the UI the same value:
+DataPlatform normally stores governed products beneath
+`<DataPlatform>/local-data`. If it uses another storage root, give the UI the
+same value:
 
 ```dotenv
 DATA_PLATFORM_STORAGE_ROOT=D:\path\to\diagnostic-data
 ```
 
-The UI reads the `raw`, `processed`, `curated`, and `metadata` areas beneath that
-storage root. It does not connect to cloud or remote storage.
+The UI reads the `raw`, `processed`, `curated` and `metadata` areas. It does not
+connect to remote storage.
 
-## 2. Start and stop the console
+## 2. Prepare client evidence
 
-Start the app from the DataPlatformUI repository root:
+Choose a stable lowercase `client_id` containing letters, numbers, hyphens or
+underscores. Do not use a display name that may change.
+
+Place the source files beneath that client's staging folder in DataPlatform:
+
+```text
+local-data/staged/client-001/projects.csv
+local-data/staged/client-001/tasks.csv
+local-data/staged/client-001/resources.csv
+local-data/staged/client-001/assignments.csv
+local-data/staged/client-001/dependencies.csv
+```
+
+CSV and supported Excel files may be used. The canonical v2 model contains five
+datasets, but DataPlatform will assess the evidence actually supplied and expose
+missing evidence through capability fitness.
+
+From the DataPlatform repository, copy staged evidence into the governed raw
+layer without changing its contents:
+
+```powershell
+python -m ingestion.upload_raw
+```
+
+This command currently ingests every supported file beneath `local-data/staged`.
+Keep staging deliberate and check which client folders are present before
+running it.
+
+## 3. Create a canonical observation
+
+### Inspect one client
+
+Inspect only the intended client's raw evidence:
+
+```powershell
+python -m lab.inspect --client-id client-001
+```
+
+Inspection creates a technical `run_id`, discovers datasets and profiles the
+evidence. Keep the returned run ID for assessment.
+
+### Assess the run
+
+Use the business date represented by the evidence, not the technical processing
+date:
+
+```powershell
+python -m lab.assess --run-id <run_id> --observation-date <YYYY-MM-DD>
+```
+
+Assessment canonicalises the evidence, evaluates fitness by capability and
+registers an immutable `snapshot_id`.
+
+### Diagnose the snapshot
+
+```powershell
+python -m lab.diagnose --snapshot-id <snapshot_id>
+```
+
+Diagnosis runs each eligible deterministic domain and stores:
+
+- `fitness.json`;
+- `diagnosis.json`;
+- `findings.json`;
+- `diagnostic_summary.md`;
+- supporting CSV evidence beneath `curated/snapshots/<snapshot_id>/`.
+
+A result of `PASS WITH LIMITATIONS` means eligible diagnostics completed with
+recorded fitness caveats. It is not the same as a failed diagnosis.
+
+When a capability is not fit, it is skipped by default. Only acknowledge a
+known limitation deliberately:
+
+```powershell
+python -m lab.diagnose --snapshot-id <snapshot_id> --allow-not-fit resource
+```
+
+The override is capability-specific and does not change the stored fitness
+assessment.
+
+## 4. Start the console
+
+From the DataPlatformUI repository:
 
 ```powershell
 .venv\Scripts\python.exe -m streamlit run app.py
 ```
 
 Open the local address printed by Streamlit, normally
-`http://localhost:8501`. Stop the server with `Ctrl+C` in the terminal where it
-is running.
+`http://localhost:8501`. Stop it with `Ctrl+C` in the launching terminal.
 
-## 3. Select an observation
+Refresh the browser after creating new DataPlatform products.
 
-Use the **Observation** selector in the sidebar. Each option combines the
-business observation date and `snapshot_id` so the pages always refer to an
-explicit canonical observation.
+## 5. Select and review an observation
 
-If no observation is listed:
+Use the **Observation** selector in the sidebar. Each option contains the
+business observation date and `snapshot_id`.
 
-1. confirm both environment paths;
-2. confirm the storage root contains
-   `metadata/snapshots/<snapshot_id>/snapshot.json`;
-3. refresh the browser; or
-4. use **Run the lab** to inspect and assess staged test evidence.
+The current UI does not yet provide a client selector. If the storage root
+contains more than one client, confirm the selected snapshot's `client_id` in:
 
-## 4. Review diagnostic products
+```text
+metadata/snapshots/<snapshot_id>/snapshot.json
+```
+
+Until client-filtered navigation is implemented, use a single-client or
+disposable review store when operating through the UI.
 
 ### Workspace
 
-Use the workspace for an observation-level summary. It shows the number of
-canonical datasets, deterministic Findings, and capabilities assessed as fit,
-followed by the highest-priority available Findings.
-
-No Findings does not prove that the portfolio is healthy. It means only that no
-condition was emitted by the completed deterministic rules represented in the
-selected product.
+The workspace summarises canonical datasets, deterministic Findings and fitness.
+No Findings does not prove that a portfolio is healthy; it only means the
+completed configured rules emitted no conditions.
 
 ### Evidence & fitness
 
-This page answers whether the evidence can support each diagnostic capability.
-Review:
+Review each capability separately:
 
 - blocking structural conditions;
-- caveats that limit confidence or coverage;
-- rules that could not run; and
-- the separate status for each capability.
+- caveats affecting confidence or coverage;
+- unavailable rules;
+- overall capability status.
 
-Poor delivery performance is not itself a data-fitness failure.
+Poor delivery performance is not itself a structural fitness failure.
 
 ### Findings
 
-Filter Findings by domain and severity. Expand a Finding's evidence section to
-inspect:
-
-- the rule that produced it;
-- deterministic evidence values;
-- affected project, task, resource, or other entity IDs; and
-- supporting CSV artifacts retained in governed storage.
-
-If a supporting artifact is missing or unreadable, the page reports it as
-unavailable rather than hiding the limitation.
+Filter deterministic Findings by domain and severity. Expand a Finding to see
+its rule, evidence values, affected entity IDs and supporting governed CSVs.
 
 ### History
 
-The comparison tab presents movement between two observations. The trend tab
-presents movement across an ordered observation window and exposes the recorded
-continuity policy.
-
-History is optional. A point-in-time diagnosis remains usable without preserved
-historical observations.
+The page displays comparison and trend products that DataPlatform has already
+created. History is optional and is not required for point-in-time diagnosis.
 
 ### Interpretations
 
-This page lists recorded interpretation sessions and their source product,
-review status, and latest revision. Interpretations remain distinct from the
-deterministic Findings they cite.
+The page lists recorded interpretation sessions. Interpretations remain
+separate from deterministic Findings and must cite the Findings they discuss.
 
-## 5. Run the lab
+## 6. Preserve and compare observations
 
-The operation page launches DataPlatform's existing Python modules with the
-configured DataPlatform repository as their working directory. Output appears in
-the page when each synchronous command completes.
+Preservation is an explicit decision:
 
-Use this page only with test evidence or evidence handled under the appropriate
-client controls.
+```powershell
+python -m lab.preserve --snapshot-id <snapshot_id>
+```
 
-### Step 1 — Understand the evidence
+Only one eligible snapshot per client may represent an observation date. To
+preserve a corrected extract for the same client and date:
 
-Place source files in the configured `raw` storage area, then select
-**Inspect staged evidence**. DataPlatform creates a technical `run_id`, discovers
-the supplied datasets, and profiles the evidence.
+```powershell
+python -m lab.preserve --snapshot-id <corrected_id> --supersedes <original_id>
+```
 
-### Step 2 — Assess and canonicalise
+Compare two preserved observations from the same client in business-date order:
 
-Select a run whose status is `awaiting_assessment`, enter the business
-observation date represented by the evidence, and select **Assess evidence**.
+```powershell
+python -m lab.compare --from-snapshot <earlier_id> --to-snapshot <later_id>
+```
 
-The observation date is not the technical run time. Assessment canonicalises the
-run, evaluates structural fitness by capability, and registers a `snapshot_id`.
+Analyse every eligible observation within a longer window:
 
-### Step 3 — Diagnose
+```powershell
+python -m lab.trends --from-snapshot <earliest_id> --to-snapshot <latest_id>
+```
 
-Select the canonical observation and choose **Run diagnosis**. DataPlatform runs
-eligible diagnostic domains and saves deterministic Findings and their evidence
-against that explicit snapshot.
+Cross-client comparison is rejected. Trend analysis compares adjacent
+observations and does not infer continuity across an absent project.
 
-When a capability is not fit, it is skipped by default. Select a displayed
-override only when you deliberately accept that named capability's evidence
-limitation. An override does not change the stored fitness result and does not
-weaken other capabilities.
+Refresh the UI to review the new comparison or trend product.
 
-The operation page does not preserve history automatically. Preservation and
-historical analysis remain deliberate DataPlatform activities.
+## 7. Prepare and record interpretation
 
-## 6. Use synthetic review data
+Create a working directory from exactly one diagnostic product:
 
-For a safe interface walkthrough, configure a disposable storage root and run:
+```powershell
+python -m lab.interpret prepare --snapshot-id <snapshot_id> --output-dir <directory>
+python -m lab.interpret prepare --comparison-id <comparison_id> --output-dir <directory>
+python -m lab.interpret prepare --trend-id <trend_id> --output-dir <directory>
+```
+
+Edit the generated `interpretation.json`, then record it:
+
+```powershell
+python -m lab.interpret record --input <directory>\interpretation.json
+```
+
+Interpretive summaries, questions, hypotheses and provisional interventions are
+human-authored and must cite valid Finding IDs.
+
+## 8. Current Run the lab limitation
+
+The UI's operation page can launch assessment and diagnosis commands, but its
+inspection button does not yet pass the required `client_id`, and it does not
+run `ingestion.upload_raw`.
+
+For now:
+
+1. ingest and inspect from the DataPlatform command line;
+2. use the UI primarily for review;
+3. use UI operations only with a disposable single-client test store.
+
+Do not interpret the label **Inspect staged evidence** as a complete ingestion
+workflow in the current release.
+
+## 9. Synthetic review fixture
 
 ```powershell
 .venv\Scripts\python.exe -m services.demo
 ```
 
-The command writes fixed synthetic identifiers `demo-run-001` and
-`demo-2026-08-31`, including example fitness, Findings, and supporting CSVs.
-Because those fixed paths are replaced on repeated runs, do not run the demo
-against client storage.
-
-Restart or refresh the console, then choose the synthetic observation in the
-sidebar.
+This creates a fixed, review-only UI fixture. It predates the complete
+client-aware v2 contract and is not suitable for preservation, comparison or
+backend workflow testing. Never run it against a client evidence store.
 
 ## Troubleshooting
 
 ### The configured platform path does not exist
 
-Correct `DATALAB_PLATFORM_PATH` in `.env`. It must name the DataPlatform
-repository directory, not its `local-data` directory.
+`DATALAB_PLATFORM_PATH` must identify the DataPlatform repository, not its
+`local-data` directory.
 
 ### No observations are available
 
-Check `DATA_PLATFORM_STORAGE_ROOT` and verify that assessed snapshot metadata
-exists. An inspected run does not become selectable as an observation until
-assessment registers its snapshot.
+Check `DATA_PLATFORM_STORAGE_ROOT` and verify that this exists:
+
+```text
+metadata/snapshots/<snapshot_id>/snapshot.json
+```
+
+Inspection alone does not create a selectable observation; assessment does.
 
 ### No runs are awaiting assessment
 
-Run **Inspect staged evidence** first. Runs already assessed are intentionally
-excluded from the assessment selector.
+Run client-aware inspection from DataPlatform and refresh the UI. Runs already
+assessed are intentionally excluded.
 
 ### A guided command fails
 
-Expand the command status and read its captured output. The UI reports the
-DataPlatform command's exit code and message; it does not reinterpret or suppress
-platform failures. Also confirm the UI dependencies were installed from the
-current `requirements.txt`.
+Read the captured command output and exit status. Confirm that the UI and
+DataPlatform use the same storage root. For inspection failures, use the CLI
+with an explicit `--client-id`.
 
 ### Supporting evidence is unavailable
 
-Confirm the referenced file still exists beneath the configured governed storage
-root. The UI rejects artifact paths that escape the `raw`, `processed`,
-`curated`, or `metadata` areas.
+Confirm that the referenced object exists beneath `raw`, `processed`, `curated`
+or `metadata`. The UI rejects paths that escape governed storage.
 
 ## Data handling boundary
 
-The review pages are read-only. The **Run the lab** page is not: it invokes
-DataPlatform commands that create derived evidence and metadata in the configured
-storage root. The UI does not modify raw source files, calculate its own Findings,
-or produce AI interpretations.
+Review pages are read-only. DataPlatform commands create governed evidence and
+metadata. The UI does not modify raw source evidence, calculate Findings or
+produce AI interpretations. It is a local prototype without authentication,
+authorisation or production deployment controls.
