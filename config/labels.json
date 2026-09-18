@@ -1,0 +1,9 @@
+{
+  "ingestion": {"title": "Data Received", "description": "The data supplied for this lab session."},
+  "discovery": {"title": "Data Discovery", "description": "What arrived, what was recognised and what may need attention."},
+  "profiling": {"title": "Data Profiling", "description": "An assessment of the structure and characteristics of the data."},
+  "processing": {"title": "Data Prepared", "description": "Data transformed into the common PPM structure."},
+  "validation": {"title": "Data Validation", "description": "Checks against expected formats, values and relationships."},
+  "curation": {"title": "Data Curated", "description": "Business-facing outputs prepared from governed data."}
+}
+
