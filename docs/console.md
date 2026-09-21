@@ -10,6 +10,12 @@ deterministic Findings, their supporting evidence, historical comparisons and
 trends, and recorded interpretations. Findings remain visibly distinct from
 consultant interpretation.
 
+The **Plan on a page** prototype is a point-in-time presentation over one
+project and one selected snapshot. It reads canonical project and task datasets
+and overlays existing Findings only when their governed supporting evidence
+contains usable dates. It does not calculate Findings, infer missing dates, or
+require the snapshot to be preserved for history.
+
 ## Release 2 — Operate
 
 The **Run the lab** page follows the existing consultant sequence:

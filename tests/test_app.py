@@ -51,11 +51,13 @@ def test_workspace_renders_governed_snapshot(tmp_path, monkeypatch):
 
     assert not app.exception
     assert app.session_state["selected_snapshot_id"] == snapshot_id
+    assert any(button.label == "Exit Data Lab" for button in app.button)
     assert any(metric.label == "Findings" and metric.value == "1" for metric in app.metric)
 
     for page in (
         "app_pages/evidence.py",
         "app_pages/findings.py",
+        "app_pages/plan.py",
         "app_pages/history.py",
         "app_pages/interpretations.py",
         "app_pages/run_lab.py",
@@ -98,6 +100,29 @@ def test_client_selection_scopes_observations(tmp_path, monkeypatch):
     assert app.session_state["selected_snapshot_id"] == "snapshot-alpha"
 
 
+def test_exit_button_requests_server_shutdown(tmp_path, monkeypatch):
+    snapshot_id = "snapshot-test"
+    write_snapshot(tmp_path, "client-001", snapshot_id, "2026-09-01")
+    monkeypatch.setenv("DATALAB_PLATFORM_PATH", str(tmp_path))
+    monkeypatch.delenv("DATA_PLATFORM_STORAGE_ROOT", raising=False)
+
+    from components import exit_control
+
+    shutdown_requests = []
+    monkeypatch.setattr(
+        exit_control,
+        "request_streamlit_shutdown",
+        lambda: shutdown_requests.append(True),
+    )
+
+    app_path = Path(__file__).parents[1] / "app.py"
+    app = AppTest.from_file(str(app_path), default_timeout=10).run()
+    app.button(key="exit_application").click().run()
+
+    assert shutdown_requests == [True]
+    assert not app.exception
+
+
 def test_staged_only_client_can_open_inspection(tmp_path, monkeypatch):
     staged = tmp_path / "local-data" / "staged" / "new-client"
     staged.mkdir(parents=True)
@@ -111,5 +136,9 @@ def test_staged_only_client_can_open_inspection(tmp_path, monkeypatch):
 
     assert not app.exception
     assert app.session_state["selected_client_id"] == "new-client"
-    assert app.button[0].label == "Inspect staged evidence"
-    assert not app.button[0].disabled
+    inspect_button = next(
+        button
+        for button in app.button
+        if button.label == "Inspect staged evidence"
+    )
+    assert not inspect_button.disabled

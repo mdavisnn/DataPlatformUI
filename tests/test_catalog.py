@@ -189,6 +189,24 @@ def test_read_table_follows_governed_artifact_reference(tmp_path, monkeypatch):
     assert frame.to_dict("records") == [{"ProjectID": "P1", "Count": 3}]
 
 
+def test_read_snapshot_dataset_resolves_processed_manifest_reference(
+    tmp_path, monkeypatch
+):
+    store_text(
+        tmp_path,
+        "processed",
+        "history/one/tasks.csv",
+        "TaskID,ProjectID\nT1,P1\n",
+    )
+
+    frame = catalogue_for(tmp_path, monkeypatch).read_snapshot_dataset(
+        {"datasets": {"tasks": "history/one/tasks.csv"}},
+        "tasks",
+    )
+
+    assert frame.to_dict("records") == [{"TaskID": "T1", "ProjectID": "P1"}]
+
+
 def test_catalogue_rejects_artifact_path_traversal(tmp_path, monkeypatch):
     catalogue = catalogue_for(tmp_path, monkeypatch)
 

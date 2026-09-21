@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import streamlit as st
 
+from components.exit_control import render_exit_control
 from config.settings import Settings, SettingsError
 from services.catalog import Catalogue
 from services.console_context import safe
@@ -16,11 +17,18 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+with st.sidebar:
+    st.header("Data Lab", icon=":material/analytics:")
+    st.caption("PPM diagnostic workspace")
+
 try:
     settings = Settings.from_environment()
     catalogue = Catalogue(settings)
     clients = safe(catalogue.list_clients, [])
 except SettingsError as error:
+    with st.sidebar:
+        st.divider()
+        render_exit_control()
     st.error(str(error), icon=":material/error:")
     st.info(
         "Set DATALAB_PLATFORM_PATH in .env to the DataPlatform repository root.",
@@ -32,8 +40,6 @@ st.session_state.setdefault("selected_client_id", None)
 st.session_state.setdefault("selected_snapshot_id", None)
 
 with st.sidebar:
-    st.header("Data Lab", icon=":material/analytics:")
-    st.caption("PPM diagnostic workspace")
     snapshots = []
     if clients:
         current_client = st.session_state.get("selected_client_id")
@@ -89,6 +95,8 @@ with st.sidebar:
         st.session_state["selected_snapshot_id"] = None
         st.caption("No assessed observations are available for this client.")
     st.caption(f"Storage: {settings.storage_root}")
+    st.divider()
+    render_exit_control()
 
 page = st.navigation(
     {
@@ -107,6 +115,11 @@ page = st.navigation(
                 "app_pages/findings.py",
                 title="Findings",
                 icon=":material/search_insights:",
+            ),
+            st.Page(
+                "app_pages/plan.py",
+                title="Plan on a page",
+                icon=":material/view_timeline:",
             ),
             st.Page(
                 "app_pages/history.py",

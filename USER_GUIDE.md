@@ -113,7 +113,10 @@ From the DataPlatformUI repository:
 ```
 
 Open the local address printed by Streamlit, normally
-`http://localhost:8501`. Stop it with `Ctrl+C` in the launching terminal.
+`http://localhost:8501`. Use **Exit Data Lab** at the bottom of the sidebar to
+stop the Streamlit server cleanly and return control to the launching terminal.
+The button stops all sessions connected to this local console. `Ctrl+C` remains
+available as a terminal fallback.
 
 Refresh the browser after creating new DataPlatform products.
 
@@ -148,6 +151,18 @@ Poor delivery performance is not itself a structural fitness failure.
 
 Filter deterministic Findings by domain and severity. Expand a Finding to see
 its rule, evidence values, affected entity IDs and supporting governed CSVs.
+
+### Plan on a page
+
+Select one project to review its canonical forecast tasks within the currently
+selected observation. Coloured overlays show dated supporting evidence for
+deterministic Findings; the blue dashed line is the observation date. Select an
+overlay or use **Inspect finding** to open the underlying Finding and its dated
+evidence rows.
+
+Findings without defensible evidence dates are listed separately rather than
+being assigned an inferred position on the plan. Tasks with missing or invalid
+forecast dates are also disclosed instead of plotted.
 
 ### History
 

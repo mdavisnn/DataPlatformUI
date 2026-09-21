@@ -94,6 +94,11 @@ From the DataPlatformUI repository root:
 
 Streamlit normally opens `http://localhost:8501`.
 
+Use **Exit Data Lab** at the bottom of the sidebar to stop the local Streamlit
+server gracefully and return control to the launching terminal. This stops the
+whole local console, including any other open browser sessions; closing a
+browser tab alone does not stop the server.
+
 ## Prepare DataPlatform evidence
 
 From the DataPlatform repository, stage each client's source files in its own
@@ -128,6 +133,10 @@ resulting observation from the sidebar.
   unavailable rules from delivery conditions.
 - **Findings** shows deterministic conditions, affected entities, rules and
   supporting governed evidence.
+- **Plan on a page** shows one project's canonical forecast schedule for the
+  selected snapshot and overlays only Findings whose supporting evidence
+  provides defensible dates. Undated project Findings remain visible beside the
+  timeline.
 - **History** displays existing two-observation comparisons and trend windows.
 - **Interpretations** lists recorded human interpretation sessions separately
   from deterministic products.

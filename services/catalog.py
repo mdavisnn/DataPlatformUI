@@ -277,6 +277,30 @@ class Catalogue:
                 f"Tabular artifact could not be read: {reference} ({error})"
             ) from error
 
+    def read_snapshot_dataset(
+        self,
+        snapshot: dict[str, Any],
+        dataset: str,
+    ) -> pd.DataFrame:
+        """Read one canonical dataset referenced by a snapshot manifest."""
+
+        reference = snapshot.get("datasets", {}).get(dataset)
+        if not reference:
+            raise ValueError(
+                f"Snapshot does not reference a {dataset!r} dataset"
+            )
+        path = PurePosixPath(str(reference))
+        if path.parts and path.parts[0] in {
+            "raw",
+            "processed",
+            "curated",
+            "metadata",
+        }:
+            governed_reference = path.as_posix()
+        else:
+            governed_reference = f"processed/{path.as_posix()}"
+        return self.read_table(governed_reference)
+
 
 def flatten_fitness(fitness: dict[str, Any]) -> pd.DataFrame:
     rows = []
