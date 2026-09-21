@@ -138,7 +138,10 @@ resulting observation from the sidebar.
   use the project picker to drill into its task schedule. Both levels overlay
   only Findings whose supporting evidence provides defensible dates; undated
   Findings remain visible beside the timelines.
-- **History** displays existing two-observation comparisons and trend windows.
+- **History** displays existing two-observation comparisons and an interactive
+  delivery trajectory for governed trend windows. The trajectory shows
+  forecast-finish movement with reported RAG context and project drill-down,
+  while retaining the underlying governed evidence on demand.
 - **Interpretations** lists recorded human interpretation sessions separately
   from deterministic products.
 - **Run the lab** provides prototype controls for assessment and diagnosis. Its
