@@ -8,6 +8,13 @@ import sys
 from datetime import date
 
 from config.settings import Settings
+from services.catalog import validate_client_id
+
+
+def _client_arguments(client_id: str) -> list[str]:
+    """Build the explicit client boundary used by every operation."""
+
+    return ["--client-id", validate_client_id(client_id)]
 
 
 def _run(settings: Settings, module: str, arguments: list[str] | None = None) -> dict:
@@ -32,24 +39,48 @@ def _run(settings: Settings, module: str, arguments: list[str] | None = None) ->
     return {"exit_code": result.returncode, "output": output}
 
 
-def inspect_evidence(settings: Settings) -> dict:
-    return _run(settings, "lab.inspect")
+def inspect_evidence(
+    settings: Settings,
+    client_id: str,
+    run_id: str | None = None,
+) -> dict:
+    arguments = _client_arguments(client_id)
+    if run_id:
+        arguments.extend(["--run-id", run_id])
+    return _run(
+        settings,
+        "lab.inspect",
+        arguments,
+    )
 
 
-def assess_evidence(settings: Settings, run_id: str, observation_date: date) -> dict:
+def assess_evidence(
+    settings: Settings,
+    client_id: str,
+    run_id: str,
+    observation_date: date,
+) -> dict:
     return _run(
         settings,
         "lab.assess",
-        ["--run-id", run_id, "--observation-date", str(observation_date)],
+        [
+            *_client_arguments(client_id),
+            "--run-id", run_id,
+            "--observation-date", str(observation_date),
+        ],
     )
 
 
 def diagnose_snapshot(
     settings: Settings,
+    client_id: str,
     snapshot_id: str,
     allow_not_fit: list[str] | None = None,
 ) -> dict:
-    arguments = ["--snapshot-id", snapshot_id]
+    arguments = [
+        *_client_arguments(client_id),
+        "--snapshot-id", snapshot_id,
+    ]
     for capability in allow_not_fit or []:
         arguments.extend(["--allow-not-fit", capability])
     return _run(settings, "lab.diagnose", arguments)

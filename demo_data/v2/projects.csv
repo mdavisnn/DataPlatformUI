@@ -1,0 +1,4 @@
+ProjectID,ProjectName,ProgrammeID,PortfolioID,BaselineStartDate,BaselineFinishDate,ForecastStartDate,ForecastFinishDate,ActualStartDate,ActualFinishDate,LifecycleStatus,RAGStatus,ProjectManager,DataDate
+PRJ-001,Payments Renewal,PGM-01,PORT-01,2026-01-05,2026-07-31,2026-01-05,2026-08-15,2026-01-05,,Active,Amber,Asha Patel,2026-08-31
+PRJ-002,Customer Portal,PGM-01,PORT-01,2026-05-01,2026-11-30,2026-05-01,2026-12-15,2026-05-03,,Active,Red,,2026-08-31
+PRJ-003,Records Migration,PGM-02,PORT-01,2026-02-02,2026-08-21,2026-02-02,2026-08-21,2026-02-02,2026-08-21,Complete,Green,Leah Morgan,2026-08-31

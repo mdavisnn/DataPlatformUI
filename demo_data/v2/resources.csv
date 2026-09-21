@@ -1,0 +1,5 @@
+ResourceID,ResourceName,Role,Team,ResourceType,Capacity
+RES-001,Sam Taylor,Technical Lead,Engineering,Person,100
+RES-002,Alex Chen,Developer,Engineering,Person,100
+RES-003,Jordan Williams,Business Analyst,Change,Person,80
+RES-004,Morgan Singh,Delivery Manager,Delivery,Person,100

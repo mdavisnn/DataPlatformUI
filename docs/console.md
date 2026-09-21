@@ -28,8 +28,9 @@ the operation page launches those modules with the UI's Python interpreter.
 
 ## Synthetic review data
 
-`python -m services.demo` writes synthetic governed products beneath the
-configured storage root. It does not contain client data.
+`python -m services.demo` stages five synthetic v2 datasets for `demo-ui` and
+creates a genuine observation through DataPlatform's inspection, assessment
+and diagnosis commands. It does not hand-write governed metadata or Findings.
 
 ## Prototype boundary
 

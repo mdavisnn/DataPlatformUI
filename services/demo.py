@@ -1,164 +1,205 @@
-"""Seed synthetic governed products so the console can be reviewed safely."""
+"""Create a synthetic v2 observation through DataPlatform's real workflow."""
 
 from __future__ import annotations
 
 import json
+import shutil
+from datetime import date
 from pathlib import Path
 
 from config.settings import Settings
+from services.workflow import (
+    assess_evidence,
+    diagnose_snapshot,
+    inspect_evidence,
+)
 
 
 CLIENT_ID = "demo-ui"
-SNAPSHOT_ID = "demo-2026-08-31"
+RUN_ID = "demo-ui-20260831-00000001"
+OBSERVATION_DATE = date(2026, 8, 31)
+SNAPSHOT_ID = f"{OBSERVATION_DATE}-{RUN_ID[-8:]}"
+DATASET_FILENAMES = (
+    "projects.csv",
+    "tasks.csv",
+    "resources.csv",
+    "assignments.csv",
+    "dependencies.csv",
+)
+SOURCE_DIRECTORY = Path(__file__).resolve().parents[1] / "demo_data" / "v2"
 
 
-def _write_text(root: Path, key: str, content: str) -> None:
-    root = root.resolve()
-    path = (root / key).resolve()
-    if root not in path.parents:
-        raise ValueError(f"Demo object escapes governed storage: {key}")
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8", newline="")
+class DemoError(RuntimeError):
+    """Raised when the synthetic demo cannot be created safely."""
 
 
-def _write_json(root: Path, key: str, value: dict) -> None:
-    _write_text(root, key, json.dumps(value, indent=2, sort_keys=True))
+def _load_json(path: Path) -> dict:
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise DemoError(
+            f"Could not read existing demo state at {path}: {error}"
+        ) from error
+    if not isinstance(document, dict):
+        raise DemoError(f"Existing demo state is not a JSON object: {path}")
+    return document
+
+
+def _require_demo_identity(document: dict, path: Path) -> None:
+    if document.get("client_id") != CLIENT_ID:
+        raise DemoError(
+            f"Refusing to reuse {path}: it does not belong to {CLIENT_ID}."
+        )
+
+
+def _stage_sources(settings: Settings) -> Path:
+    """Copy the packaged demo evidence without overwriting changed files."""
+
+    missing = [
+        filename
+        for filename in DATASET_FILENAMES
+        if not (SOURCE_DIRECTORY / filename).is_file()
+    ]
+    if missing:
+        raise DemoError(
+            "The packaged v2 demo is incomplete: " + ", ".join(missing)
+        )
+
+    staging_root = (settings.storage_root / "staged" / CLIENT_ID).resolve()
+    storage_root = settings.storage_root.resolve()
+    if storage_root not in staging_root.parents:
+        raise DemoError("The demo staging path escapes governed storage.")
+
+    expected = set(DATASET_FILENAMES)
+    unexpected = []
+    if staging_root.is_dir():
+        unexpected = sorted(
+            path.relative_to(staging_root).as_posix()
+            for path in staging_root.rglob("*")
+            if path.is_file()
+            and path.relative_to(staging_root).as_posix() not in expected
+        )
+    if unexpected:
+        raise DemoError(
+            "Refusing to mix packaged demo evidence with other staged files: "
+            + ", ".join(unexpected)
+        )
+
+    conflicts = []
+    for filename in DATASET_FILENAMES:
+        source = SOURCE_DIRECTORY / filename
+        target = staging_root / filename
+        if target.exists() and target.read_bytes() != source.read_bytes():
+            conflicts.append(filename)
+    if conflicts:
+        raise DemoError(
+            "Refusing to overwrite changed staged demo evidence: "
+            + ", ".join(conflicts)
+            + ". Remove or rename staged/demo-ui before retrying."
+        )
+
+    staging_root.mkdir(parents=True, exist_ok=True)
+    for filename in DATASET_FILENAMES:
+        source = SOURCE_DIRECTORY / filename
+        target = staging_root / filename
+        if not target.exists():
+            shutil.copyfile(source, target)
+    return staging_root
+
+
+def _run_step(label: str, operation) -> bool:
+    result = operation()
+    print(f"\n--- {label} ---")
+    if result.get("output"):
+        print(result["output"])
+    if result.get("exit_code") != 0:
+        print(f"[FAIL] {label} failed with exit code {result.get('exit_code')}.")
+        return False
+    return True
+
+
+def _existing_state(settings: Settings) -> str:
+    """Return the next workflow phase while validating fixed demo identity."""
+
+    metadata = settings.storage_root / "metadata"
+    snapshot_path = metadata / "snapshots" / SNAPSHOT_ID / "snapshot.json"
+    diagnosis_path = metadata / "snapshots" / SNAPSHOT_ID / "diagnosis.json"
+    run_path = metadata / "runs" / RUN_ID / "run_summary.json"
+
+    if snapshot_path.is_file():
+        snapshot = _load_json(snapshot_path)
+        _require_demo_identity(snapshot, snapshot_path)
+        if snapshot.get("run_id") != RUN_ID:
+            raise DemoError(
+                f"Refusing to reuse {snapshot_path}: run_id does not match {RUN_ID}."
+            )
+        if diagnosis_path.is_file():
+            diagnosis = _load_json(diagnosis_path)
+            _require_demo_identity(diagnosis, diagnosis_path)
+            return "complete"
+        return "diagnose"
+
+    if run_path.is_file():
+        run = _load_json(run_path)
+        _require_demo_identity(run, run_path)
+        if run.get("snapshot_id"):
+            raise DemoError(
+                f"Run {RUN_ID} references a snapshot whose manifest is missing."
+            )
+        if run.get("profile_status") == "success":
+            return "assess"
+        raise DemoError(
+            f"Run {RUN_ID} exists but inspection is not complete; review {run_path}."
+        )
+
+    return "inspect"
 
 
 def main(settings: Settings | None = None) -> int:
     settings = settings or Settings.from_environment()
-    metadata = settings.storage_root / "metadata"
-    curated = settings.storage_root / "curated"
-    run_id = "demo-run-001"
-    _write_json(metadata, f"runs/{run_id}/run_summary.json", {
-        "client_id": CLIENT_ID,
-        "run_id": run_id,
-        "status": "assessed",
-        "profile_status": "success",
-        "fitness_status": "fit_with_caveats",
-        "observation_date": "2026-08-31",
-        "snapshot_id": SNAPSHOT_ID,
-        "source_files": [
-            "projects_demo.csv",
-            "tasks_demo.csv",
-            "resources_demo.csv",
-            "assignments_demo.csv",
-        ],
-        "datasets_discovered": ["projects", "tasks", "resources", "assignments"],
-        "notes": ["Synthetic demonstration evidence."],
-    })
-    _write_json(metadata, f"snapshots/{SNAPSHOT_ID}/snapshot.json", {
-        "client_id": CLIENT_ID,
-        "snapshot_id": SNAPSHOT_ID,
-        "run_id": run_id,
-        "observation_date": "2026-08-31",
-        "history_eligible": True,
-        "datasets": {
-            "projects": "snapshots/demo/projects.csv",
-            "tasks": "snapshots/demo/tasks.csv",
-            "resources": "snapshots/demo/resources.csv",
-            "assignments": "snapshots/demo/assignments.csv",
-        },
-        "source_files": [
-            "projects_demo.csv",
-            "tasks_demo.csv",
-            "resources_demo.csv",
-            "assignments_demo.csv",
-        ],
-    })
-    capabilities = {
-        "data": {"status": "fit", "blocking_conditions": [], "caveats": [], "unavailable_rules": []},
-        "schedule": {
-            "status": "fit_with_caveats",
-            "blocking_conditions": [],
-            "caveats": [{"rule_id": "FIT-DATE-003", "dataset": "tasks", "count": 9}],
-            "unavailable_rules": [],
-        },
-        "resource": {"status": "fit", "blocking_conditions": [], "caveats": [], "unavailable_rules": []},
-        "portfolio": {"status": "fit", "blocking_conditions": [], "caveats": [], "unavailable_rules": []},
-        "reporting": {"status": "fit", "blocking_conditions": [], "caveats": [], "unavailable_rules": []},
-        "history": {
-            "status": "fit_with_caveats",
-            "blocking_conditions": [],
-            "caveats": [{"rule_id": "FIT-HIST-001", "dataset": "projects", "count": 1}],
-            "unavailable_rules": [],
-        },
-    }
-    _write_json(metadata, f"snapshots/{SNAPSHOT_ID}/fitness.json", {
-        "client_id": CLIENT_ID,
-        "snapshot_id": SNAPSHOT_ID,
-        "capabilities": capabilities,
-    })
-    findings = [
-        {
-            "finding_id": "SCH-001",
-            "diagnostic_id": "schedule_health",
-            "domain": "schedule",
-            "title": "Activities extend beyond project forecasts",
-            "description": "Fourteen active projects contain activities finishing after the project forecast finish date.",
-            "snapshot_id": SNAPSHOT_ID,
-            "observation_date": "2026-08-31",
-            "rule_id": "SCH-OUTSIDE-PROJECT-DATES",
-            "severity": "high",
-            "evidence": {"projects_affected": 14, "activities_affected": 67, "portfolio_projects": 42},
-            "affected_entities": {"projects": [f"PRJ-{number:03}" for number in range(1, 15)]},
-            "supporting_artifacts": [f"curated/snapshots/{SNAPSHOT_ID}/schedule/tasks_outside_project_dates.csv"],
-        },
-        {
-            "finding_id": "RES-001",
-            "diagnostic_id": "resource_conflicts",
-            "domain": "resource",
-            "title": "Persistent allocation conflicts",
-            "description": "Seven resources are allocated above available capacity across overlapping assignments.",
-            "snapshot_id": SNAPSHOT_ID,
-            "observation_date": "2026-08-31",
-            "rule_id": "RES-OVERALLOCATED",
-            "severity": "medium",
-            "evidence": {"resources_affected": 7, "maximum_allocation_percent": 165},
-            "affected_entities": {"resources": [f"RES-{number:03}" for number in range(1, 8)]},
-            "supporting_artifacts": [f"curated/snapshots/{SNAPSHOT_ID}/resource/resource_conflicts.csv"],
-        },
-        {
-            "finding_id": "PORT-001",
-            "diagnostic_id": "portfolio_health",
-            "domain": "portfolio",
-            "title": "Forecast exposure is concentrated",
-            "description": "Five projects account for most of the portfolio's observed forecast delay.",
-            "snapshot_id": SNAPSHOT_ID,
-            "observation_date": "2026-08-31",
-            "rule_id": "PORT-DELAY-CONCENTRATION",
-            "severity": "medium",
-            "evidence": {"projects_affected": 5, "share_of_total_delay_percent": 71},
-            "affected_entities": {"projects": [f"PRJ-{number:03}" for number in range(1, 6)]},
-            "supporting_artifacts": [],
-        },
-    ]
-    _write_json(metadata, f"snapshots/{SNAPSHOT_ID}/findings.json", {
-        "client_id": CLIENT_ID,
-        "snapshot_id": SNAPSHOT_ID,
-        "observation_date": "2026-08-31",
-        "findings": findings,
-    })
-    _write_json(metadata, f"snapshots/{SNAPSHOT_ID}/diagnosis.json", {
-        "client_id": CLIENT_ID,
-        "snapshot_id": SNAPSHOT_ID,
-        "stage": "diagnosis",
-        "execution_status": "completed_with_limitations",
-        "observation_date": "2026-08-31",
-        "capability_fitness": capabilities,
-        "diagnostics": [{"capability": "schedule", "status": "success", "finding_count": 1}],
-    })
-    _write_text(
-        curated,
-        f"snapshots/{SNAPSHOT_ID}/schedule/tasks_outside_project_dates.csv",
-        "ProjectID,TaskID,ProjectForecastFinish,TaskFinish,DaysOutside\nPRJ-001,TASK-001,2026-10-01,2026-11-15,45\nPRJ-004,TASK-019,2026-09-12,2026-10-03,21\n",
-    )
-    _write_text(
-        curated,
-        f"snapshots/{SNAPSHOT_ID}/resource/resource_conflicts.csv",
-        "ResourceID,Period,AllocationPercent,ExcessPercent\nRES-001,2026-09,165,65\nRES-003,2026-09,135,35\n",
-    )
-    print(f"Synthetic console demo created for {CLIENT_ID}: {SNAPSHOT_ID}")
+    try:
+        staging_root = _stage_sources(settings)
+        phase = _existing_state(settings)
+    except (DemoError, OSError) as error:
+        print(f"[FAIL] {error}")
+        return 1
+
+    print("=" * 60)
+    print("CREATE DATAPLATFORM V2 DEMO")
+    print("=" * 60)
+    print(f"Client ID:        {CLIENT_ID}")
+    print(f"Observation date: {OBSERVATION_DATE}")
+    print(f"Staged evidence:  {staging_root}")
+
+    if phase == "complete":
+        print(f"Demo observation already exists: {SNAPSHOT_ID}")
+        return 0
+
+    if phase == "inspect" and not _run_step(
+        "Inspect evidence",
+        lambda: inspect_evidence(settings, CLIENT_ID, RUN_ID),
+    ):
+        return 1
+
+    if phase in {"inspect", "assess"} and not _run_step(
+        "Assess evidence",
+        lambda: assess_evidence(
+            settings,
+            CLIENT_ID,
+            RUN_ID,
+            OBSERVATION_DATE,
+        ),
+    ):
+        return 1
+
+    if not _run_step(
+        "Diagnose observation",
+        lambda: diagnose_snapshot(settings, CLIENT_ID, SNAPSHOT_ID),
+    ):
+        return 1
+
+    print(f"\nDataPlatform v2 demo created: {SNAPSHOT_ID}")
+    print("Select client demo-ui in the console to review it.")
     return 0
 
 

@@ -50,29 +50,20 @@ CSV and supported Excel files may be used. The canonical v2 model contains five
 datasets, but DataPlatform will assess the evidence actually supplied and expose
 missing evidence through capability fitness.
 
-From the DataPlatform repository, copy staged evidence into the governed raw
-layer without changing its contents:
-
-```powershell
-python -m ingestion.upload_raw
-```
-
-This command currently ingests every supported file beneath `local-data/staged`.
-Keep staging deliberate and check which client folders are present before
-running it.
-
 ## 3. Create a canonical observation
 
 ### Inspect one client
 
-Inspect only the intended client's raw evidence:
+Inspect only the intended client's staged evidence:
 
 ```powershell
 python -m lab.inspect --client-id client-001
 ```
 
-Inspection creates a technical `run_id`, discovers datasets and profiles the
-evidence. Keep the returned run ID for assessment.
+Inspection copies that client's supported files into governed raw storage
+without changing their contents, creates a technical `run_id`, then discovers
+and profiles only those newly ingested files. Keep the returned run ID for
+assessment.
 
 ### Assess the run
 
@@ -80,7 +71,7 @@ Use the business date represented by the evidence, not the technical processing
 date:
 
 ```powershell
-python -m lab.assess --run-id <run_id> --observation-date <YYYY-MM-DD>
+python -m lab.assess --client-id client-001 --run-id <run_id> --observation-date <YYYY-MM-DD>
 ```
 
 Assessment canonicalises the evidence, evaluates fitness by capability and
@@ -89,7 +80,7 @@ registers an immutable `snapshot_id`.
 ### Diagnose the snapshot
 
 ```powershell
-python -m lab.diagnose --snapshot-id <snapshot_id>
+python -m lab.diagnose --client-id client-001 --snapshot-id <snapshot_id>
 ```
 
 Diagnosis runs each eligible deterministic domain and stores:
@@ -107,7 +98,7 @@ When a capability is not fit, it is skipped by default. Only acknowledge a
 known limitation deliberately:
 
 ```powershell
-python -m lab.diagnose --snapshot-id <snapshot_id> --allow-not-fit resource
+python -m lab.diagnose --client-id client-001 --snapshot-id <snapshot_id> --allow-not-fit resource
 ```
 
 The override is capability-specific and does not change the stored fitness
@@ -219,20 +210,21 @@ python -m lab.interpret record --input <directory>\interpretation.json
 Interpretive summaries, questions, hypotheses and provisional interventions are
 human-authored and must cite valid Finding IDs.
 
-## 8. Current Run the lab limitation
+## 8. Run the lab
 
-The UI's operation page can launch assessment and diagnosis commands, but its
-inspection button does not yet pass the required `client_id`, and it does not
-run `ingestion.upload_raw`.
+The operation page uses the client selected in the sidebar. **Inspect staged
+evidence** calls DataPlatform's client-scoped inspection command, which:
 
-For now:
+1. ingests supported files from `staged/<client_id>/` without changing them;
+2. excludes other clients and stale raw files from the run;
+3. discovers and profiles the exact files just ingested;
+4. creates a client-scoped run awaiting assessment.
 
-1. ingest and inspect from the DataPlatform command line;
-2. use the UI primarily for review;
-3. use UI operations only with a disposable single-client test store.
-
-Do not interpret the label **Inspect staged evidence** as a complete ingestion
-workflow in the current release.
+Keep the selected client and staging folder aligned before starting inspection.
+Assessment and diagnosis also pass the selected client to DataPlatform, which
+rejects a run or snapshot belonging to another client before writing outputs.
+The controls run synchronously and remain intended for local, consultant-led
+operation rather than unattended orchestration.
 
 ## 9. Synthetic review fixture
 
@@ -240,10 +232,15 @@ workflow in the current release.
 .venv\Scripts\python.exe -m services.demo
 ```
 
-This creates a fixed, review-only UI fixture. It predates the complete
-v2 evidence model, is assigned to the synthetic client `demo-ui`, and is not
-suitable for preservation, comparison or backend workflow testing. Never run
-it against a client evidence store.
+This stages synthetic projects, tasks, resources, assignments and dependencies
+for `demo-ui`, then runs the real DataPlatform inspection, assessment and
+diagnosis workflow. Select `demo-ui` and observation date `2026-08-31` in the
+console after it completes.
+
+The generated snapshot has normal backend lineage and can be preserved if you
+want to exercise history, although a comparison still requires a second
+observation. Rerunning the command reuses the completed fixed demo. It refuses
+to overwrite any changed files already present beneath `staged/demo-ui`.
 
 ## Troubleshooting
 

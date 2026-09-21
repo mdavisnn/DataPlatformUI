@@ -88,6 +88,13 @@ def test_catalogue_lists_clients_and_scopes_runs_and_snapshots(tmp_path, monkeyp
     ] == ["snapshot-beta"]
 
 
+def test_catalogue_includes_valid_staged_only_clients(tmp_path, monkeypatch):
+    (tmp_path / "local-data" / "staged" / "new-client").mkdir(parents=True)
+    (tmp_path / "local-data" / "staged" / "Invalid Client").mkdir()
+
+    assert catalogue_for(tmp_path, monkeypatch).list_clients() == ["new-client"]
+
+
 def test_catalogue_scopes_history_and_interpretations(tmp_path, monkeypatch):
     store_json(tmp_path, "snapshots/snapshot-alpha/snapshot.json", {
         "client_id": "alpha",

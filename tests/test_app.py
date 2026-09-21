@@ -96,3 +96,20 @@ def test_client_selection_scopes_observations(tmp_path, monkeypatch):
 
     assert app.session_state["selected_client_id"] == "alpha"
     assert app.session_state["selected_snapshot_id"] == "snapshot-alpha"
+
+
+def test_staged_only_client_can_open_inspection(tmp_path, monkeypatch):
+    staged = tmp_path / "local-data" / "staged" / "new-client"
+    staged.mkdir(parents=True)
+    (staged / "projects.csv").write_text("ProjectID\nP1\n", encoding="utf-8")
+    monkeypatch.setenv("DATALAB_PLATFORM_PATH", str(tmp_path))
+    monkeypatch.delenv("DATA_PLATFORM_STORAGE_ROOT", raising=False)
+
+    app_path = Path(__file__).parents[1] / "app.py"
+    app = AppTest.from_file(str(app_path), default_timeout=10).run()
+    app.switch_page("app_pages/run_lab.py").run()
+
+    assert not app.exception
+    assert app.session_state["selected_client_id"] == "new-client"
+    assert app.button[0].label == "Inspect staged evidence"
+    assert not app.button[0].disabled

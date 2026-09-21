@@ -132,14 +132,24 @@ class Catalogue:
         )
 
     def list_clients(self) -> list[str]:
-        """Return valid client IDs represented by runs or snapshots."""
+        """Return valid client IDs represented by staged or governed evidence."""
 
         documents = [*self.list_runs(), *self.list_snapshots()]
-        return sorted({
+        client_ids = {
             client_id
             for item in documents
             if (client_id := _metadata_client_id(item)) is not None
-        })
+        }
+        staged_root = self.settings.storage_root / "staged"
+        if staged_root.is_dir():
+            for path in staged_root.iterdir():
+                if not path.is_dir():
+                    continue
+                try:
+                    client_ids.add(validate_client_id(path.name))
+                except ValueError:
+                    continue
+        return sorted(client_ids)
 
     def snapshot_bundle(
         self,

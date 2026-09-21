@@ -23,12 +23,18 @@ st.warning(
 )
 
 st.subheader("1 · Understand the evidence")
-st.caption(f"Uses files already staged in {settings.raw_path}.")
+st.caption(
+    "Ingests and inspects supported files staged in "
+    f"{settings.storage_root / 'staged' / str(client_id or '<select-client>')}."
+)
 if st.button(
-    "Inspect staged evidence", type="primary", icon=":material/search:"
+    "Inspect staged evidence",
+    type="primary",
+    icon=":material/search:",
+    disabled=not client_id,
 ):
     with st.status("Inspecting evidence…", expanded=True) as status:
-        result = inspect_evidence(settings)
+        result = inspect_evidence(settings, client_id)
         st.code(result["output"] or "No command output was returned.")
         succeeded = result["exit_code"] == 0
         status.update(
@@ -60,7 +66,12 @@ if not awaiting:
     st.caption("No inspected runs are awaiting assessment.")
 if submitted:
     with st.status("Assessing evidence…", expanded=True) as status:
-        result = assess_evidence(settings, run_id, observation_date)
+        result = assess_evidence(
+            settings,
+            client_id,
+            run_id,
+            observation_date,
+        )
         st.code(result["output"] or "No command output was returned.")
         succeeded = result["exit_code"] == 0
         status.update(
@@ -103,7 +114,12 @@ overrides = st.pills(
 )
 if st.button("Run diagnosis", icon=":material/analytics:"):
     with st.status("Running diagnosis…", expanded=True) as status:
-        result = diagnose_snapshot(settings, options[target], list(overrides or []))
+        result = diagnose_snapshot(
+            settings,
+            client_id,
+            options[target],
+            list(overrides or []),
+        )
         st.code(result["output"] or "No command output was returned.")
         succeeded = result["exit_code"] == 0
         status.update(

@@ -21,11 +21,10 @@ The sidebar first selects a client, then an observation belonging to that
 client. Review pages scope runs, snapshots, comparisons, trends and
 interpretations to the selected `client_id` before displaying them.
 
-The **Run the lab** page is still a prototype. Its inspection control does not
-yet pass the required `client_id`, and it does not run staged-file ingestion.
-Until that client-aware workflow is implemented, ingest and inspect through the
-DataPlatform command line and use the UI primarily for review. Use the operation
-page only with a disposable, single-client test store.
+The **Run the lab** page passes the selected `client_id` to DataPlatform.
+Inspection ingests only that client's staged files before discovering and
+profiling the exact evidence admitted to the run. The page remains a local,
+consultant-facing control surface rather than a production orchestration layer.
 
 ## DataPlatform contract
 
@@ -111,11 +110,13 @@ local-data/staged/client-001/dependencies.csv
 Then run the governed workflow:
 
 ```powershell
-python -m ingestion.upload_raw
 python -m lab.inspect --client-id client-001
-python -m lab.assess --run-id <run_id> --observation-date <YYYY-MM-DD>
-python -m lab.diagnose --snapshot-id <snapshot_id>
+python -m lab.assess --client-id client-001 --run-id <run_id> --observation-date <YYYY-MM-DD>
+python -m lab.diagnose --client-id client-001 --snapshot-id <snapshot_id>
 ```
+
+Inspection ingests only the selected client's staged files before discovery and
+profiling.
 
 Refresh the UI after the commands complete. Select the client and then the
 resulting observation from the sidebar.
@@ -131,7 +132,8 @@ resulting observation from the sidebar.
 - **Interpretations** lists recorded human interpretation sessions separately
   from deterministic products.
 - **Run the lab** provides prototype controls for assessment and diagnosis. Its
-  ingestion and client-aware inspection workflow is not yet complete.
+  inspection action also performs client-scoped staged-file ingestion. Every
+  action passes the selected client to DataPlatform for an ownership check.
 
 ## Optional history and interpretation
 
@@ -148,9 +150,19 @@ Prepare and record a human-authored interpretation with `lab.interpret`. See
 
 ## Synthetic review data
 
-`python -m services.demo` creates a fixed, review-only UI fixture for the
-synthetic client `demo-ui`. It is not a genuine DataPlatform run, preserved
-observation or comparison source. Never point it at a client evidence store.
+Create the synthetic `demo-ui` observation from packaged v2 evidence:
+
+```powershell
+.venv\Scripts\python.exe -m services.demo
+```
+
+The command stages all five canonical datasets, then uses DataPlatform's real
+inspection, assessment and diagnosis commands. The result is a genuine
+point-in-time observation dated `2026-08-31`, with backend-produced fitness,
+Findings and lineage. It is not preserved for history automatically.
+
+The fixed demo is safe to rerun: an existing completed observation is reused,
+and changed files already present in `staged/demo-ui` are never overwritten.
 
 ## Tests
 
