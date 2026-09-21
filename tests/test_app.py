@@ -40,6 +40,40 @@ def write_snapshot(tmp_path, client_id, snapshot_id, observation_date):
     }), encoding="utf-8")
 
 
+def write_plan_datasets(tmp_path, snapshot_id):
+    snapshot_path = (
+        tmp_path
+        / "local-data"
+        / "metadata"
+        / "snapshots"
+        / snapshot_id
+        / "snapshot.json"
+    )
+    snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))
+    snapshot["datasets"] = {
+        "projects": f"{snapshot_id}/projects.csv",
+        "tasks": f"{snapshot_id}/tasks.csv",
+    }
+    snapshot_path.write_text(json.dumps(snapshot), encoding="utf-8")
+
+    processed = tmp_path / "local-data" / "processed" / snapshot_id
+    processed.mkdir(parents=True)
+    (processed / "projects.csv").write_text(
+        "ProjectID,ProjectName,PortfolioID,ForecastStartDate,"
+        "ForecastFinishDate\n"
+        "P1,Alpha,PORT-A,2026-01-01,2026-03-31\n"
+        "P2,Beta,PORT-B,2026-02-01,2026-04-30\n",
+        encoding="utf-8",
+    )
+    (processed / "tasks.csv").write_text(
+        "TaskID,ProjectID,TaskName,ForecastStartDate,"
+        "ForecastFinishDate,IsMilestone\n"
+        "T1,P1,Design,2026-01-01,2026-01-31,false\n"
+        "T2,P2,Build,2026-02-01,2026-04-15,false\n",
+        encoding="utf-8",
+    )
+
+
 def test_workspace_renders_governed_snapshot(tmp_path, monkeypatch):
     snapshot_id = "snapshot-test"
     write_snapshot(tmp_path, "client-001", snapshot_id, "2026-09-01")
@@ -64,6 +98,44 @@ def test_workspace_renders_governed_snapshot(tmp_path, monkeypatch):
     ):
         app.switch_page(page).run()
         assert not app.exception, page
+
+
+def test_plan_filters_portfolio_and_drills_into_project(
+    tmp_path,
+    monkeypatch,
+):
+    snapshot_id = "snapshot-plan"
+    write_snapshot(tmp_path, "client-001", snapshot_id, "2026-09-01")
+    write_plan_datasets(tmp_path, snapshot_id)
+    monkeypatch.setenv("DATALAB_PLATFORM_PATH", str(tmp_path))
+    monkeypatch.delenv("DATA_PLATFORM_STORAGE_ROOT", raising=False)
+
+    app_path = Path(__file__).parents[1] / "app.py"
+    app = AppTest.from_file(str(app_path), default_timeout=10).run()
+    app.switch_page("app_pages/plan.py").run()
+
+    assert not app.exception
+    portfolio = app.selectbox(key=f"plan_portfolio_{snapshot_id}")
+    portfolio.set_value("PORT-A").run()
+    assert not app.exception
+    projects_metric = next(
+        metric
+        for metric in app.metric
+        if metric.label == "Projects plotted"
+    )
+    assert projects_metric.value == "1"
+
+    project = app.selectbox(
+        key=f"plan_project_{snapshot_id}_PORT-A"
+    )
+    project.set_value("P1").run()
+
+    assert not app.exception
+    assert any(header.value == "Alpha · P1" for header in app.header)
+    assert any(
+        metric.label == "Tasks plotted" and metric.value == "1"
+        for metric in app.metric
+    )
 
 
 def test_client_selection_scopes_observations(tmp_path, monkeypatch):

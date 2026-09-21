@@ -133,10 +133,11 @@ resulting observation from the sidebar.
   unavailable rules from delivery conditions.
 - **Findings** shows deterministic conditions, affected entities, rules and
   supporting governed evidence.
-- **Plan on a page** shows one project's canonical forecast schedule for the
-  selected snapshot and overlays only Findings whose supporting evidence
-  provides defensible dates. Undated project Findings remain visible beside the
-  timeline.
+- **Plan on a page** groups canonical project forecast bars by portfolio for
+  the selected snapshot. Filter to one portfolio, then select a project bar or
+  use the project picker to drill into its task schedule. Both levels overlay
+  only Findings whose supporting evidence provides defensible dates; undated
+  Findings remain visible beside the timelines.
 - **History** displays existing two-observation comparisons and trend windows.
 - **Interpretations** lists recorded human interpretation sessions separately
   from deterministic products.

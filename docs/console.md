@@ -11,10 +11,12 @@ trends, and recorded interpretations. Findings remain visibly distinct from
 consultant interpretation.
 
 The **Plan on a page** prototype is a point-in-time presentation over one
-project and one selected snapshot. It reads canonical project and task datasets
-and overlays existing Findings only when their governed supporting evidence
-contains usable dates. It does not calculate Findings, infer missing dates, or
-require the snapshot to be preserved for history.
+selected snapshot. It first groups project forecast bars by portfolio, supports
+portfolio filtering, and lets the consultant select a project to drill into its
+task timeline. It reads canonical project and task datasets and overlays
+existing Findings only when their governed supporting evidence contains usable
+dates. It does not calculate Findings, infer missing dates, or require the
+snapshot to be preserved for history.
 
 ## Release 2 — Operate
 

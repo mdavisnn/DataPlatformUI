@@ -154,15 +154,20 @@ its rule, evidence values, affected entity IDs and supporting governed CSVs.
 
 ### Plan on a page
 
-Select one project to review its canonical forecast tasks within the currently
-selected observation. Coloured overlays show dated supporting evidence for
-deterministic Findings; the blue dashed line is the observation date. Select an
-overlay or use **Inspect finding** to open the underlying Finding and its dated
-evidence rows.
+Start with the project summary, where forecast bars are grouped by portfolio
+within the currently selected observation. Use **Portfolio** to narrow the
+scope, then select a project bar (or use **Drill into project**) to open its
+canonical task timeline. Coloured overlays show dated supporting evidence for
+deterministic Findings; the blue dashed line is the observation date. The
+domain and severity filters apply to both timeline levels.
+
+In the task timeline, select an overlay or use **Inspect finding** to open the
+underlying Finding and its dated evidence rows. Projects or tasks with missing
+or invalid forecast dates are disclosed instead of plotted. Projects without a
+portfolio identifier are grouped under **Unassigned**.
 
 Findings without defensible evidence dates are listed separately rather than
-being assigned an inferred position on the plan. Tasks with missing or invalid
-forecast dates are also disclosed instead of plotted.
+being assigned an inferred position on either plan.
 
 ### History
 
