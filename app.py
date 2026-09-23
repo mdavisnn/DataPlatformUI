@@ -122,6 +122,16 @@ page = st.navigation(
                 icon=":material/grid_view:",
             ),
             st.Page(
+                "app_pages/schedule.py",
+                title="Schedule",
+                icon=":material/calendar_month:",
+            ),
+            st.Page(
+                "app_pages/resources.py",
+                title="Resources",
+                icon=":material/groups:",
+            ),
+            st.Page(
                 "app_pages/plan.py",
                 title="Plan on a page",
                 icon=":material/view_timeline:",

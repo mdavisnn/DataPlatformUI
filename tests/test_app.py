@@ -76,12 +76,87 @@ def write_snapshot(tmp_path, client_id, snapshot_id, observation_date):
         f"curated/{client_id}/snapshots/{snapshot_id}/"
         "overview/project_health.csv"
     )
+    schedule_products = {
+        "project_summary": (
+            f"curated/{client_id}/snapshots/{snapshot_id}/schedule/"
+            "project_schedule_health.csv"
+        ),
+        "activity_profile": (
+            f"curated/{client_id}/snapshots/{snapshot_id}/schedule/"
+            "schedule_activity_profile.csv"
+        ),
+        "conditions": (
+            f"curated/{client_id}/snapshots/{snapshot_id}/schedule/"
+            "schedule_conditions.csv"
+        ),
+    }
+    resource_products = {
+        "resource_summary": (
+            f"curated/{client_id}/snapshots/{snapshot_id}/resource/"
+            "resource_summary.csv"
+        ),
+        "project_summary": (
+            f"curated/{client_id}/snapshots/{snapshot_id}/resource/"
+            "project_resource_summary.csv"
+        ),
+        "conflicts": (
+            f"curated/{client_id}/snapshots/{snapshot_id}/resource/"
+            "resource_conflicts.csv"
+        ),
+        "unassigned_work": (
+            f"curated/{client_id}/snapshots/{snapshot_id}/resource/"
+            "unassigned_work.csv"
+        ),
+    }
     _write_json(snapshot_root / "diagnosis.json", {
         "format_version": "1.0",
         "client_id": client_id,
         "snapshot_id": snapshot_id,
         "execution_status": "success",
         "project_health_object": project_health_reference,
+        "diagnostics": [
+            {
+                "capability": "schedule",
+                "diagnostic_id": "schedule_health",
+                "status": "success",
+                "products": schedule_products,
+                "metrics": {
+                    "tasks_analysed": 2,
+                    "milestone_count": 1,
+                    "overdue_tasks": 1,
+                    "overdue_milestones": 1,
+                    "projects_with_conditions": 1,
+                    "date_coverage_pct": 100.0,
+                    "hierarchy_coverage_pct": 50.0,
+                    "float_coverage_pct": 50.0,
+                    "criticality_coverage_pct": 50.0,
+                    "unavailable_measures": [
+                        "critical_path_network_analysis"
+                    ],
+                },
+            },
+            {
+                "capability": "resource",
+                "diagnostic_id": "resource_conflicts",
+                "status": "success",
+                "products": resource_products,
+                "metrics": {
+                    "resources_analysed": 1,
+                    "cross_project_resources": 1,
+                    "conflict_resource_count": 1,
+                    "conflict_count": 1,
+                    "task_assignment_coverage_pct": 50.0,
+                    "assignment_date_coverage_pct": 100.0,
+                    "resource_capacity_coverage_pct": 100.0,
+                    "conflict_threshold_pct": 100,
+                    "capacity_assumption": (
+                        "Over-allocation uses concurrent assignment "
+                        "allocation above the configured 100% threshold."
+                    ),
+                    "unavailable_measures": ["true_utilisation"],
+                },
+            },
+        ],
         "summary": {
             "portfolio_scale": {
                 "projects": 2,
@@ -138,6 +213,68 @@ def write_snapshot(tmp_path, client_id, snapshot_id, observation_date):
         "No finding,No finding,Not assessed,Fit,0,0,0,0,\n",
         encoding="utf-8",
     )
+    schedule = curated / "schedule"
+    schedule.mkdir(parents=True, exist_ok=True)
+    (schedule / "project_schedule_health.csv").write_text(
+        "ProjectID,ProjectName,TaskCount,OverdueTasks,VeryLongTasks,"
+        "TasksStartingBeforeProject,TasksFinishingAfterProject,IssueCount,"
+        "ScheduleHealth,MilestoneCount,OverdueMilestones,DateCoveragePct,"
+        "HierarchyCoveragePct,FloatCoveragePct,"
+        "CriticalEvidenceCoveragePct,BaselineFinishCoveragePct,"
+        "MedianTaskDurationDays,MaxTaskDurationDays\n"
+        "P1,Alpha,1,1,0,0,0,1,Warning,1,1,100,100,100,100,100,30,30\n"
+        "P2,Beta,1,0,0,0,0,0,Healthy,0,0,100,0,0,0,0,73,73\n",
+        encoding="utf-8",
+    )
+    (schedule / "schedule_activity_profile.csv").write_text(
+        "ProjectID,ProjectName,TaskID,TaskName,ForecastStart,"
+        "ForecastFinish,DurationDays,Status,IsMilestone,IsOverdue,"
+        "FinishVarianceDays,TotalFloatDays\n"
+        "P1,Alpha,T1,Design,2026-01-01,2026-01-31,30,Active,true,"
+        "true,5,2\n"
+        "P2,Beta,T2,Build,2026-02-01,2026-04-15,73,Active,false,"
+        "false,,\n",
+        encoding="utf-8",
+    )
+    (schedule / "schedule_conditions.csv").write_text(
+        "Severity,RuleID,ProjectID,ProjectName,TaskID,TaskName,"
+        "TaskStart,TaskFinish,Status,Message\n"
+        "medium,SCH-OVERDUE,P1,Alpha,T1,Design,2026-01-01,"
+        "2026-01-31,Active,Task is overdue\n",
+        encoding="utf-8",
+    )
+    resource = curated / "resource"
+    resource.mkdir(parents=True, exist_ok=True)
+    (resource / "resource_summary.csv").write_text(
+        "ResourceID,ResourceName,Role,Team,CapacityPct,AssignmentCount,"
+        "TaskCount,ProjectCount,ProjectIDs,CrossProject,"
+        "AssignmentAllocationSharePct,PeakConcurrentAllocationPct,"
+        "ConflictPeriodCount,AssignmentDateCoveragePct\n"
+        "R1,Planner,Planner,Controls,100,2,2,2,\"P1,P2\",true,"
+        "100,130,1,100\n",
+        encoding="utf-8",
+    )
+    (resource / "project_resource_summary.csv").write_text(
+        "ProjectID,TaskCount,AssignedTaskCount,UnassignedTaskCount,"
+        "AssignmentCoveragePct,ResourceCount,SharedResourceCount,"
+        "ConflictResourceCount,ConflictPeriodCount\n"
+        "P1,1,1,0,100,1,1,1,1\n"
+        "P2,1,0,1,0,0,0,0,0\n",
+        encoding="utf-8",
+    )
+    (resource / "resource_conflicts.csv").write_text(
+        "ResourceName,ResourceID,ConflictStart,ConflictFinish,"
+        "TotalAllocation,OverAllocation,ProjectCount,TaskCount,"
+        "ProjectIDs,TaskIDs\n"
+        "Planner,R1,2026-01-01,2026-01-31,130,30,2,2,"
+        "\"P1,P2\",\"T1,T2\"\n",
+        encoding="utf-8",
+    )
+    (resource / "unassigned_work.csv").write_text(
+        "ProjectID,TaskID,TaskName,ForecastStart,ForecastFinish,Status\n"
+        "P2,T2,Build,2026-02-01,2026-04-15,Active\n",
+        encoding="utf-8",
+    )
 
 
 def app_for(tmp_path, monkeypatch):
@@ -166,6 +303,8 @@ def test_workspace_renders_governed_snapshot(tmp_path, monkeypatch):
         "app_pages/evidence.py",
         "app_pages/findings.py",
         "app_pages/project_health.py",
+        "app_pages/schedule.py",
+        "app_pages/resources.py",
         "app_pages/plan.py",
         "app_pages/history.py",
         "app_pages/interpretations.py",
@@ -217,6 +356,58 @@ def test_plan_filters_portfolio_and_drills_into_project(
         metric.label == "Tasks plotted" and metric.value == "1"
         for metric in app.metric
     )
+
+
+def test_schedule_lens_reads_backend_products(tmp_path, monkeypatch):
+    snapshot_id = "snapshot-schedule"
+    write_snapshot(tmp_path, "client-001", snapshot_id, "2026-09-01")
+    app = app_for(tmp_path, monkeypatch)
+
+    app.switch_page("app_pages/schedule.py").run()
+
+    assert not app.exception
+    assert any(
+        metric.label == "Overdue activities" and metric.value == "1"
+        for metric in app.metric
+    )
+    assert any(
+        item.value == "Activity duration distribution"
+        for item in app.subheader
+    )
+    assert any(
+        item.value == "Deterministic schedule conditions"
+        for item in app.subheader
+    )
+    app.selectbox(
+        key=f"schedule_project_{snapshot_id}"
+    ).set_value("P2").run()
+    assert not app.exception
+
+
+def test_resource_lens_reads_backend_products(tmp_path, monkeypatch):
+    snapshot_id = "snapshot-resource"
+    write_snapshot(tmp_path, "client-001", snapshot_id, "2026-09-01")
+    app = app_for(tmp_path, monkeypatch)
+
+    app.switch_page("app_pages/resources.py").run()
+
+    assert not app.exception
+    assert any(
+        metric.label == "Conflict resources" and metric.value == "1"
+        for metric in app.metric
+    )
+    assert any(
+        item.value == "Resource concentration and cross-project usage"
+        for item in app.subheader
+    )
+    assert any(
+        item.value == "Project assignment coverage"
+        for item in app.subheader
+    )
+    app.selectbox(
+        key=f"resource_project_{snapshot_id}"
+    ).set_value("P2").run()
+    assert not app.exception
 
 
 def test_client_selection_scopes_observations(tmp_path, monkeypatch):

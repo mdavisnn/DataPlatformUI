@@ -22,6 +22,14 @@ The **Executive snapshot** and **Project health** pages consume the saved
 summary and cross-domain project matrix produced by DataPlatform. The console
 does not recreate their counts or classifications from canonical data.
 
+The **Schedule** and **Resources** pages consume named products recorded on
+their successful diagnostic outcomes. Schedule uses project, activity and
+condition evidence. Resources uses resource and project rollups, conflict
+periods and unassigned work. Both views expose backend-recorded coverage,
+assumptions and unavailable measures. The console applies filters and chart
+layout only; it does not recreate rule flags, allocation pressure or coverage
+calculations.
+
 ## Release 2 — Operate
 
 The **Run the lab** page follows the existing consultant sequence:

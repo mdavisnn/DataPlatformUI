@@ -136,6 +136,13 @@ resulting observation from the sidebar.
   supporting governed evidence.
 - **Project health** compares projects across separate backend-produced
   portfolio, schedule, resource, reporting and dependency dimensions.
+- **Schedule** reads backend-produced project, activity and condition products
+  to show overdue work, milestone position, duration distribution and schedule
+  evidence coverage. Missing float, criticality or hierarchy evidence remains
+  visibly unavailable.
+- **Resources** reads backend-produced resource and project rollups, conflict
+  periods and unassigned work. Planned allocation pressure is kept distinct
+  from actual utilisation and unsupported capacity forecasts.
 - **Plan on a page** groups canonical project forecast bars by portfolio for
   the selected snapshot. Filter to one portfolio, then select a project bar or
   use the project picker to drill into its task schedule. Both levels overlay

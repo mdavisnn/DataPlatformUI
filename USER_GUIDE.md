@@ -159,6 +159,30 @@ capability completed without producing a Finding for that project.
 `Not assessed` means the capability did not run or is not implemented. Select
 a project to inspect the authoritative Finding IDs behind the matrix row.
 
+### Schedule
+
+Review backend-calculated overdue activities and milestones, project condition
+concentration, activity duration distribution, and schedule evidence coverage.
+Use the project and health filters to narrow the saved products. Total float,
+criticality, hierarchy, baseline variance and historical milestone slippage are
+shown as unavailable when the observation cannot support them.
+
+The Schedule page does not infer critical paths or recalculate the schedule
+rules. Use **Plan on a page** when you need the detailed dated project and task
+timeline.
+
+### Resources
+
+Review peak concurrent assignment allocation, over-allocation conflict periods,
+cross-project participation, assignment concentration, project coverage and
+unassigned tasks. Resource and project filters narrow the saved backend
+products.
+
+Allocation percentages describe planned assignments. They are not actual
+utilisation, timesheet effort or a time-phased forecast. The page displays the
+configured conflict threshold, capacity evidence coverage and unsupported
+measures explicitly.
+
 ### Plan on a page
 
 Start with the project summary, where forecast bars are grouped by portfolio
