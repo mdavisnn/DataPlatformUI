@@ -28,14 +28,6 @@ class Settings:
             raise SettingsError(f"The configured platform path does not exist: {platform_path}")
         return cls(platform_path)
 
-    @property
-    def runs_path(self) -> Path:
-        candidates = (
-            self.platform_path / "local-data" / "metadata" / "runs",
-            self.platform_path / "metadata" / "runs",
-        )
-        return next((path for path in candidates if path.is_dir()), candidates[0])
-
     def data_path(self, area: str) -> Path:
         """Return the local directory for a governed data area."""
         candidates = (
@@ -69,11 +61,3 @@ class Settings:
     @property
     def curated_path(self) -> Path:
         return self.data_path("curated")
-
-    @property
-    def snapshots_path(self) -> Path:
-        candidates = (
-            self.metadata_path / "snapshots",
-            self.platform_path / "metadata" / "snapshots",
-        )
-        return next((path for path in candidates if path.is_dir()), candidates[0])

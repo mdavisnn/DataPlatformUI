@@ -117,6 +117,11 @@ page = st.navigation(
                 icon=":material/search_insights:",
             ),
             st.Page(
+                "app_pages/project_health.py",
+                title="Project health",
+                icon=":material/grid_view:",
+            ),
+            st.Page(
                 "app_pages/plan.py",
                 title="Plan on a page",
                 icon=":material/view_timeline:",

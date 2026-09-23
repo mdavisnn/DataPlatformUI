@@ -1,4 +1,4 @@
-"""Read governed DataPlatform products without importing the platform package."""
+"""Read client-owned DataPlatform products without importing the platform."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 import pandas as pd
+import streamlit as st
 
 from config.settings import Settings
 from services.platform_reader import MetadataReadError
@@ -16,9 +17,19 @@ from services.platform_reader import MetadataReadError
 CLIENT_ID_PATTERN = re.compile(r"[a-z0-9][a-z0-9_-]{0,63}")
 
 
-def validate_client_id(value: Any) -> str:
-    """Return a client ID matching DataPlatform's metadata contract."""
+@st.cache_data(ttl=5, max_entries=256, show_spinner=False)
+def _cached_text(path_text: str, modified_ns: int) -> str:
+    del modified_ns
+    return Path(path_text).read_text(encoding="utf-8")
 
+
+@st.cache_data(ttl=5, max_entries=256, show_spinner=False)
+def _cached_table(path_text: str, modified_ns: int) -> pd.DataFrame:
+    del modified_ns
+    return pd.read_csv(Path(path_text))
+
+
+def validate_client_id(value: Any) -> str:
     client_id = str(value or "").strip()
     if not CLIENT_ID_PATTERN.fullmatch(client_id):
         raise ValueError(
@@ -35,8 +46,10 @@ def _metadata_client_id(document: dict[str, Any]) -> str | None:
         return None
 
 
-def _ids_from_keys(keys: list[str], collection: str, artifact: str) -> list[str]:
-    prefix = f"{collection}/"
+def _ids_from_keys(
+    keys: list[str], client_id: str, collection: str, artifact: str,
+) -> list[str]:
+    prefix = f"{client_id}/{collection}/"
     suffix = f"/{artifact}"
     return sorted({
         key[len(prefix):-len(suffix)]
@@ -48,7 +61,7 @@ def _ids_from_keys(keys: list[str], collection: str, artifact: str) -> list[str]
 
 
 class Catalogue:
-    """Small read-only facade over DataPlatform's local governed storage."""
+    """Small read-only facade over DataPlatform's governed local storage."""
 
     def __init__(self, settings: Settings):
         self.settings = settings
@@ -62,13 +75,17 @@ class Catalogue:
         root = self._area_root(area).resolve()
         candidate = (root / Path(key)).resolve()
         if candidate != root and root not in candidate.parents:
-            raise ValueError(f"Artifact reference escapes governed storage: {area}/{key}")
+            raise ValueError(
+                f"Artifact reference escapes governed storage: {area}/{key}"
+            )
         return candidate
 
     def _read_json(self, area: str, key: str) -> dict[str, Any]:
         path = self._path(area, key)
         try:
-            value = json.loads(path.read_text(encoding="utf-8"))
+            value = json.loads(
+                _cached_text(str(path), path.stat().st_mtime_ns)
+            )
         except FileNotFoundError:
             raise
         except (OSError, UnicodeError, json.JSONDecodeError) as error:
@@ -88,40 +105,94 @@ class Catalogue:
             return [search_path.relative_to(root).as_posix()]
         return sorted(
             path.relative_to(root).as_posix()
-            for path in search_path.rglob("*")
-            if path.is_file()
+            for path in search_path.rglob("*") if path.is_file()
         )
 
-    def list_runs(self, client_id: str | None = None) -> list[dict[str, Any]]:
-        selected_client = validate_client_id(client_id) if client_id else None
-        keys = self._list_files("metadata", prefix="runs")
-        run_ids = _ids_from_keys(keys, "runs", "run_summary.json")
-        runs = [
-            self._read_json("metadata", f"runs/{run_id}/run_summary.json")
-            for run_id in reversed(run_ids)
-        ]
-        if selected_client:
-            runs = [
-                item for item in runs
-                if _metadata_client_id(item) == selected_client
-            ]
-        return runs
+    @staticmethod
+    def _owned(document: dict[str, Any], client_id: str, key: str):
+        if _metadata_client_id(document) != client_id:
+            raise MetadataReadError(
+                f"Metadata ownership does not match {key}"
+            )
+        return document
+
+    def list_clients(self) -> list[str]:
+        """Return clients represented by authoritative or inbox evidence."""
+
+        clients = set()
+        for key in self._list_files("metadata"):
+            parts = PurePosixPath(key).parts
+            if len(parts) == 2 and parts[1] == "client.json":
+                try:
+                    client_id = validate_client_id(parts[0])
+                    document = self._read_json("metadata", key)
+                    self._owned(document, client_id, key)
+                    clients.add(client_id)
+                except (ValueError, MetadataReadError):
+                    continue
+            elif (
+                len(parts) >= 4
+                and parts[1] in {
+                    "runs", "snapshots", "comparisons", "trends",
+                    "interpretations",
+                }
+            ):
+                try:
+                    clients.add(validate_client_id(parts[0]))
+                except ValueError:
+                    continue
+        raw_root = self._area_root("raw")
+        if raw_root.is_dir():
+            for path in raw_root.iterdir():
+                if not path.is_dir():
+                    continue
+                try:
+                    clients.add(validate_client_id(path.name))
+                except ValueError:
+                    continue
+        return sorted(clients)
+
+    def list_runs(
+        self, client_id: str | None = None,
+    ) -> list[dict[str, Any]]:
+        clients = (
+            [validate_client_id(client_id)]
+            if client_id else self.list_clients()
+        )
+        runs = []
+        for owner in clients:
+            keys = self._list_files("metadata", f"{owner}/runs")
+            for run_id in _ids_from_keys(keys, owner, "runs", "run.json"):
+                key = f"{owner}/runs/{run_id}/run.json"
+                runs.append(self._owned(
+                    self._read_json("metadata", key), owner, key
+                ))
+        return sorted(
+            runs,
+            key=lambda item: (
+                str(item.get("started_at") or ""),
+                str(item.get("run_id") or ""),
+            ),
+            reverse=True,
+        )
 
     def list_snapshots(
-        self,
-        client_id: str | None = None,
+        self, client_id: str | None = None,
     ) -> list[dict[str, Any]]:
-        selected_client = validate_client_id(client_id) if client_id else None
-        keys = self._list_files("metadata", prefix="snapshots")
-        snapshots = [
-            self._read_json("metadata", f"snapshots/{snapshot_id}/snapshot.json")
-            for snapshot_id in _ids_from_keys(keys, "snapshots", "snapshot.json")
-        ]
-        if selected_client:
-            snapshots = [
-                item for item in snapshots
-                if _metadata_client_id(item) == selected_client
-            ]
+        clients = (
+            [validate_client_id(client_id)]
+            if client_id else self.list_clients()
+        )
+        snapshots = []
+        for owner in clients:
+            keys = self._list_files("metadata", f"{owner}/snapshots")
+            for snapshot_id in _ids_from_keys(
+                keys, owner, "snapshots", "snapshot.json"
+            ):
+                key = f"{owner}/snapshots/{snapshot_id}/snapshot.json"
+                snapshots.append(self._owned(
+                    self._read_json("metadata", key), owner, key
+                ))
         return sorted(
             snapshots,
             key=lambda item: (
@@ -131,45 +202,46 @@ class Catalogue:
             reverse=True,
         )
 
-    def list_clients(self) -> list[str]:
-        """Return valid client IDs represented by staged or governed evidence."""
-
-        documents = [*self.list_runs(), *self.list_snapshots()]
-        client_ids = {
-            client_id
-            for item in documents
-            if (client_id := _metadata_client_id(item)) is not None
-        }
-        staged_root = self.settings.storage_root / "staged"
-        if staged_root.is_dir():
-            for path in staged_root.iterdir():
-                if not path.is_dir():
-                    continue
-                try:
-                    client_ids.add(validate_client_id(path.name))
-                except ValueError:
-                    continue
-        return sorted(client_ids)
+    def _owner_for(
+        self, collection: str, identity: str, artifact: str,
+    ) -> str:
+        matches = [
+            client_id for client_id in self.list_clients()
+            if self._path(
+                "metadata",
+                f"{client_id}/{collection}/{identity}/{artifact}",
+            ).is_file()
+        ]
+        if not matches:
+            raise FileNotFoundError(identity)
+        if len(matches) > 1:
+            raise MetadataReadError(
+                f"{identity} is ambiguous across clients: {matches}"
+            )
+        return matches[0]
 
     def snapshot_bundle(
-        self,
-        snapshot_id: str,
-        client_id: str | None = None,
+        self, snapshot_id: str, client_id: str | None = None,
     ) -> dict[str, dict[str, Any]]:
-        base = f"snapshots/{snapshot_id}"
-        snapshot = self._read_json("metadata", f"{base}/snapshot.json")
-        if (
-            client_id
-            and _metadata_client_id(snapshot) != validate_client_id(client_id)
-        ):
-            raise ValueError(
-                f"Snapshot {snapshot_id} does not belong to client {client_id}"
-            )
+        owner = (
+            validate_client_id(client_id)
+            if client_id
+            else self._owner_for("snapshots", snapshot_id, "snapshot.json")
+        )
+        base = f"{owner}/snapshots/{snapshot_id}"
+        snapshot = self._owned(
+            self._read_json("metadata", f"{base}/snapshot.json"),
+            owner,
+            f"{base}/snapshot.json",
+        )
         bundle = {"snapshot": snapshot}
         for name in ("fitness", "diagnosis", "findings"):
             try:
-                bundle[name] = self._read_json(
+                document = self._read_json(
                     "metadata", f"{base}/{name}.json"
+                )
+                bundle[name] = self._owned(
+                    document, owner, f"{base}/{name}.json"
                 )
             except FileNotFoundError:
                 bundle[name] = {}
@@ -181,86 +253,46 @@ class Catalogue:
         artifact: str,
         client_id: str | None = None,
     ) -> list[dict[str, Any]]:
-        selected_client = validate_client_id(client_id) if client_id else None
-        keys = self._list_files("metadata", prefix=collection)
-        products = [
-            self._read_json("metadata", f"{collection}/{item_id}/{artifact}")
-            for item_id in reversed(_ids_from_keys(keys, collection, artifact))
-        ]
-        if selected_client:
-            products = [
-                item for item in products
-                if _metadata_client_id(item) == selected_client
-            ]
+        clients = (
+            [validate_client_id(client_id)]
+            if client_id else self.list_clients()
+        )
+        products = []
+        for owner in clients:
+            keys = self._list_files("metadata", f"{owner}/{collection}")
+            for identity in reversed(
+                _ids_from_keys(keys, owner, collection, artifact)
+            ):
+                key = f"{owner}/{collection}/{identity}/{artifact}"
+                products.append(self._owned(
+                    self._read_json("metadata", key), owner, key
+                ))
         return products
 
-    def list_comparisons(
-        self,
-        client_id: str | None = None,
-    ) -> list[dict[str, Any]]:
+    def list_comparisons(self, client_id: str | None = None):
         return self.list_products(
-            "comparisons",
-            "comparison.json",
-            client_id,
+            "comparisons", "comparison.json", client_id
         )
 
-    def list_trends(
-        self,
-        client_id: str | None = None,
-    ) -> list[dict[str, Any]]:
+    def list_trends(self, client_id: str | None = None):
         return self.list_products("trends", "trend.json", client_id)
 
-    def _interpretation_client_id(
-        self,
-        session: dict[str, Any],
-    ) -> str | None:
-        direct_client = _metadata_client_id(session)
-        if direct_client:
-            return direct_client
-        source_type = session.get("source_type")
-        source_id = session.get("source_id")
-        source_contracts = {
-            "snapshot": ("snapshots", "snapshot.json"),
-            "comparison": ("comparisons", "comparison.json"),
-            "trend": ("trends", "trend.json"),
-        }
-        if source_type not in source_contracts or not source_id:
-            return None
-        collection, artifact = source_contracts[source_type]
-        try:
-            source = self._read_json(
-                "metadata",
-                f"{collection}/{source_id}/{artifact}",
-            )
-        except FileNotFoundError:
-            return None
-        return _metadata_client_id(source)
-
-    def list_interpretations(
-        self,
-        client_id: str | None = None,
-    ) -> list[dict[str, Any]]:
-        selected_client = validate_client_id(client_id) if client_id else None
-        sessions = self.list_products("interpretations", "session.json")
-        scoped_sessions = []
-        for session in sessions:
-            source_client = self._interpretation_client_id(session)
-            if selected_client and source_client != selected_client:
-                continue
-            enriched = dict(session)
-            if source_client:
-                enriched["client_id"] = source_client
-            scoped_sessions.append(enriched)
-        return scoped_sessions
+    def list_interpretations(self, client_id: str | None = None):
+        return self.list_products(
+            "interpretations", "session.json", client_id
+        )
 
     def read_artifact(self, reference: str) -> str:
         path = PurePosixPath(reference)
         if len(path.parts) < 2:
-            raise ValueError(f"Unsupported artifact reference: {reference}")
+            raise ValueError(
+                f"Unsupported artifact reference: {reference}"
+            )
         area = path.parts[0]
         key = "/".join(path.parts[1:])
         try:
-            return self._path(area, key).read_text(encoding="utf-8")
+            target = self._path(area, key)
+            return _cached_text(str(target), target.stat().st_mtime_ns)
         except (OSError, UnicodeError) as error:
             raise MetadataReadError(
                 f"Artifact could not be read: {reference} ({error})"
@@ -269,48 +301,55 @@ class Catalogue:
     def read_table(self, reference: str) -> pd.DataFrame:
         path = PurePosixPath(reference)
         if len(path.parts) < 2:
-            raise ValueError(f"Unsupported artifact reference: {reference}")
+            raise ValueError(
+                f"Unsupported artifact reference: {reference}"
+            )
         try:
-            return pd.read_csv(self._path(path.parts[0], "/".join(path.parts[1:])))
+            target = self._path(
+                path.parts[0], "/".join(path.parts[1:])
+            )
+            return _cached_table(str(target), target.stat().st_mtime_ns)
         except (OSError, UnicodeError, pd.errors.ParserError) as error:
             raise MetadataReadError(
                 f"Tabular artifact could not be read: {reference} ({error})"
             ) from error
 
     def read_snapshot_dataset(
-        self,
-        snapshot: dict[str, Any],
-        dataset: str,
+        self, snapshot: dict[str, Any], dataset: str,
     ) -> pd.DataFrame:
-        """Read one canonical dataset referenced by a snapshot manifest."""
-
         reference = snapshot.get("datasets", {}).get(dataset)
         if not reference:
             raise ValueError(
                 f"Snapshot does not reference a {dataset!r} dataset"
             )
         path = PurePosixPath(str(reference))
-        if path.parts and path.parts[0] in {
-            "raw",
-            "processed",
-            "curated",
-            "metadata",
-        }:
-            governed_reference = path.as_posix()
-        else:
-            governed_reference = f"processed/{path.as_posix()}"
-        return self.read_table(governed_reference)
+        governed = (
+            path.as_posix()
+            if path.parts and path.parts[0] in {
+                "raw", "processed", "curated", "metadata",
+            }
+            else f"processed/{path.as_posix()}"
+        )
+        return self.read_table(governed)
 
 
 def flatten_fitness(fitness: dict[str, Any]) -> pd.DataFrame:
     rows = []
-    for capability, assessment in fitness.get("capabilities", {}).items():
+    for capability, assessment in fitness.get(
+        "capabilities", {}
+    ).items():
         rows.append({
             "Capability": capability.replace("_", " ").title(),
-            "Assessment": assessment.get("status", "unknown").replace("_", " ").title(),
-            "Blockers": len(assessment.get("blocking_conditions", [])),
+            "Assessment": assessment.get(
+                "status", "unknown"
+            ).replace("_", " ").title(),
+            "Blockers": len(
+                assessment.get("blocking_conditions", [])
+            ),
             "Caveats": len(assessment.get("caveats", [])),
-            "Unavailable rules": len(assessment.get("unavailable_rules", [])),
+            "Unavailable rules": len(
+                assessment.get("unavailable_rules", [])
+            ),
         })
     return pd.DataFrame(rows)
 
@@ -324,7 +363,9 @@ def findings_frame(findings_document: dict[str, Any]) -> pd.DataFrame:
             "Domain": finding.get("domain", "unknown").title(),
             "Severity": finding.get("severity", "unknown").title(),
             "Title": finding.get("title", "Untitled finding"),
-            "Affected entities": sum(len(values) for values in entities.values()),
+            "Affected entities": sum(
+                len(values) for values in entities.values()
+            ),
             "Rule": finding.get("rule_id"),
         })
     return pd.DataFrame(rows)

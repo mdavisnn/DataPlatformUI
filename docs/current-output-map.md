@@ -1,39 +1,28 @@
 # Current output map
 
-This initial map is based on the DataPlatform metadata architecture. It should
-be verified against one complete run and one failed run before deeper UI work.
+DataPlatformUI reads the client-owned local products below. Paths are resolved
+beneath the storage root shared with DataPlatform.
 
-Prototype 1 is local-only. Every source below is resolved beneath the local
-directory configured by `DATALAB_PLATFORM_PATH`; cloud/object-storage paths
-are intentionally not considered.
-
-| Interface information | Current source | UI handling |
+| Interface information | Authoritative source | UI handling |
 | --- | --- | --- |
-| Run ID and overall state | `run.json` | Normalised by `services/run_reader.py` |
-| Stage statuses and timestamps | `run.json` | Normalised by `services/run_reader.py` |
-| Received sources | `sources.json` | Read by `services/discovery_reader.py` |
-| Profiling summary | `profiling.json` | Read by `services/profiling_reader.py` |
-| Field profiles | `profiles/<dataset>.json` | Reader expansion required |
-| Processing result | `processing.json` | Reader expansion required |
-| Validation status and findings | `validation.json` | Read by `services/validation_reader.py` |
-| Example failing records | `validation_errors.csv` when present | Reader expansion required |
-| Curated output evidence | `curation/*.json` | Reader expansion required |
-| Dataset lineage and row counts | `metadata/snapshots/<dataset>/<run_id>.json` | Reader expansion required |
+| Client identity | `metadata/<client_id>/client.json` | Client selector and ownership validation |
+| Run state and timestamps | `metadata/<client_id>/runs/<run_id>/run.json` | Run the lab |
+| Run sources | `metadata/<client_id>/runs/<run_id>/sources.json` | Operational context |
+| Canonical observation identity | `metadata/<client_id>/snapshots/<snapshot_id>/snapshot.json` | Shared observation context |
+| Capability fitness | `metadata/<client_id>/snapshots/<snapshot_id>/fitness.json` | Evidence & fitness |
+| Diagnostic execution and executive summary | `metadata/<client_id>/snapshots/<snapshot_id>/diagnosis.json` | Executive snapshot |
+| Deterministic Findings | `metadata/<client_id>/snapshots/<snapshot_id>/findings.json` | Workspace, Findings and drill-down |
+| Project comparison matrix | `curated/<client_id>/snapshots/<snapshot_id>/overview/project_health.csv` | Project health |
+| Canonical datasets | Objects referenced by `snapshot.json.datasets` | Plan on a page |
+| Detailed diagnostic evidence | Objects referenced by Findings and diagnosis outcomes | Finding evidence |
+| Historical comparison | `metadata/<client_id>/comparisons/<comparison_id>/comparison.json` | History |
+| Historical trend | `metadata/<client_id>/trends/<trend_id>/trend.json` | History |
+| Human interpretation | `metadata/<client_id>/interpretations/<interpretation_id>/session.json` | Interpretations |
 
-## Known platform-layout detail
+The UI tolerates a missing optional analytical product and labels the
+corresponding view as unavailable. It does not reinterpret missing output as a
+healthy or empty result.
 
-The current repository places local evidence below
-`local-data/metadata/runs`. The UI also supports `metadata/runs`, preserving the
-portable contract proposed for the prototype.
-
-## Next mapping pass
-
-Catalogue the exact keys and types from:
-
-- one successful run with curation evidence;
-- one validation-failed or incomplete run;
-- each dataset profile;
-- `validation_errors.csv`, when present.
-
-Then replace the temporary raw-JSON presentation in the detailed pages with
-stable models and client-friendly components.
+DataPlatform owns calculations, fitness classifications, diagnostic rules,
+Finding creation and project-health statuses. The UI performs presentation-only
+filtering, sorting and visualisation.

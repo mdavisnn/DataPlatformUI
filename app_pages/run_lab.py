@@ -24,11 +24,11 @@ st.warning(
 
 st.subheader("1 · Understand the evidence")
 st.caption(
-    "Ingests and inspects supported files staged in "
-    f"{settings.storage_root / 'staged' / str(client_id or '<select-client>')}."
+    "Inspects supported files in the client raw inbox at "
+    f"{settings.storage_root / 'raw' / str(client_id or '<select-client>')}."
 )
 if st.button(
-    "Inspect staged evidence",
+    "Inspect raw evidence",
     type="primary",
     icon=":material/search:",
     disabled=not client_id,

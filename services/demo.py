@@ -53,7 +53,7 @@ def _require_demo_identity(document: dict, path: Path) -> None:
 
 
 def _stage_sources(settings: Settings) -> Path:
-    """Copy the packaged demo evidence without overwriting changed files."""
+    """Copy packaged demo evidence into the raw client inbox safely."""
 
     missing = [
         filename
@@ -65,7 +65,7 @@ def _stage_sources(settings: Settings) -> Path:
             "The packaged v2 demo is incomplete: " + ", ".join(missing)
         )
 
-    staging_root = (settings.storage_root / "staged" / CLIENT_ID).resolve()
+    staging_root = (settings.storage_root / "raw" / CLIENT_ID).resolve()
     storage_root = settings.storage_root.resolve()
     if storage_root not in staging_root.parents:
         raise DemoError("The demo staging path escapes governed storage.")
@@ -81,7 +81,7 @@ def _stage_sources(settings: Settings) -> Path:
         )
     if unexpected:
         raise DemoError(
-            "Refusing to mix packaged demo evidence with other staged files: "
+            "Refusing to mix packaged demo evidence with other raw files: "
             + ", ".join(unexpected)
         )
 
@@ -93,9 +93,9 @@ def _stage_sources(settings: Settings) -> Path:
             conflicts.append(filename)
     if conflicts:
         raise DemoError(
-            "Refusing to overwrite changed staged demo evidence: "
+            "Refusing to overwrite changed raw demo evidence: "
             + ", ".join(conflicts)
-            + ". Remove or rename staged/demo-ui before retrying."
+            + ". Remove or rename raw/demo-ui before retrying."
         )
 
     staging_root.mkdir(parents=True, exist_ok=True)
@@ -122,9 +122,14 @@ def _existing_state(settings: Settings) -> str:
     """Return the next workflow phase while validating fixed demo identity."""
 
     metadata = settings.storage_root / "metadata"
-    snapshot_path = metadata / "snapshots" / SNAPSHOT_ID / "snapshot.json"
-    diagnosis_path = metadata / "snapshots" / SNAPSHOT_ID / "diagnosis.json"
-    run_path = metadata / "runs" / RUN_ID / "run_summary.json"
+    client_root = metadata / CLIENT_ID
+    snapshot_path = (
+        client_root / "snapshots" / SNAPSHOT_ID / "snapshot.json"
+    )
+    diagnosis_path = (
+        client_root / "snapshots" / SNAPSHOT_ID / "diagnosis.json"
+    )
+    run_path = client_root / "runs" / RUN_ID / "run.json"
 
     if snapshot_path.is_file():
         snapshot = _load_json(snapshot_path)

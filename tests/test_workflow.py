@@ -54,7 +54,7 @@ def test_inspection_can_use_a_fixed_run_id(tmp_path):
     ]
 
 
-def test_assessment_passes_client_run_and_observation_date(tmp_path):
+def test_assessment_validates_client_but_backend_infers_run_owner(tmp_path):
     settings = Settings(tmp_path)
 
     with patch(
@@ -69,14 +69,15 @@ def test_assessment_passes_client_run_and_observation_date(tmp_path):
         )
 
     assert result["exit_code"] == 0
-    assert run.call_args.args[0][-6:] == [
-        "--client-id", "client-001",
+    assert run.call_args.args[0][-4:] == [
         "--run-id", "run-001",
         "--observation-date", "2026-09-30",
     ]
 
 
-def test_diagnosis_passes_client_snapshot_and_overrides(tmp_path):
+def test_diagnosis_validates_client_but_backend_infers_snapshot_owner(
+    tmp_path,
+):
     settings = Settings(tmp_path)
 
     with patch(
@@ -91,8 +92,7 @@ def test_diagnosis_passes_client_snapshot_and_overrides(tmp_path):
         )
 
     assert result["exit_code"] == 0
-    assert run.call_args.args[0][-6:] == [
-        "--client-id", "client-001",
+    assert run.call_args.args[0][-4:] == [
         "--snapshot-id", "snapshot-001",
         "--allow-not-fit", "resource",
     ]

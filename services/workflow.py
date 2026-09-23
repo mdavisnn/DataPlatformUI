@@ -12,7 +12,7 @@ from services.catalog import validate_client_id
 
 
 def _client_arguments(client_id: str) -> list[str]:
-    """Build the explicit client boundary used by every operation."""
+    """Build the client boundary required when inspection begins."""
 
     return ["--client-id", validate_client_id(client_id)]
 
@@ -60,11 +60,11 @@ def assess_evidence(
     run_id: str,
     observation_date: date,
 ) -> dict:
+    validate_client_id(client_id)
     return _run(
         settings,
         "lab.assess",
         [
-            *_client_arguments(client_id),
             "--run-id", run_id,
             "--observation-date", str(observation_date),
         ],
@@ -77,8 +77,8 @@ def diagnose_snapshot(
     snapshot_id: str,
     allow_not_fit: list[str] | None = None,
 ) -> dict:
+    validate_client_id(client_id)
     arguments = [
-        *_client_arguments(client_id),
         "--snapshot-id", snapshot_id,
     ]
     for capability in allow_not_fit or []:

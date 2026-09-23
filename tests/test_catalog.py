@@ -19,30 +19,48 @@ def store_json(root, key, value):
     store_text(root, "metadata", key, json.dumps(value))
 
 
+def register_client(root, client_id):
+    store_json(
+        root,
+        f"{client_id}/client.json",
+        {"format_version": "1.0", "client_id": client_id},
+    )
+
+
 def catalogue_for(tmp_path, monkeypatch):
     monkeypatch.delenv("DATA_PLATFORM_STORAGE_ROOT", raising=False)
     return Catalogue(Settings(tmp_path))
 
 
-def test_catalogue_lists_and_orders_snapshots_by_observation_date(tmp_path, monkeypatch):
-    store_json(tmp_path, "snapshots/older/snapshot.json", {
+def test_catalogue_lists_client_owned_snapshots_by_observation_date(
+    tmp_path, monkeypatch,
+):
+    register_client(tmp_path, "client-001")
+    store_json(tmp_path, "client-001/snapshots/older/snapshot.json", {
         "client_id": "client-001",
         "snapshot_id": "older",
         "observation_date": "2026-01-31",
     })
-    store_json(tmp_path, "snapshots/newer/snapshot.json", {
+    store_json(tmp_path, "client-001/snapshots/newer/snapshot.json", {
         "client_id": "client-001",
         "snapshot_id": "newer",
         "observation_date": "2026-02-28",
     })
 
-    snapshots = catalogue_for(tmp_path, monkeypatch).list_snapshots("client-001")
+    snapshots = catalogue_for(tmp_path, monkeypatch).list_snapshots(
+        "client-001"
+    )
 
-    assert [item["snapshot_id"] for item in snapshots] == ["newer", "older"]
+    assert [item["snapshot_id"] for item in snapshots] == [
+        "newer", "older"
+    ]
 
 
-def test_snapshot_bundle_tolerates_optional_products(tmp_path, monkeypatch):
-    store_json(tmp_path, "snapshots/one/snapshot.json", {
+def test_snapshot_bundle_tolerates_optional_products(
+    tmp_path, monkeypatch,
+):
+    register_client(tmp_path, "client-001")
+    store_json(tmp_path, "client-001/snapshots/one/snapshot.json", {
         "client_id": "client-001",
         "snapshot_id": "one",
     })
@@ -50,32 +68,34 @@ def test_snapshot_bundle_tolerates_optional_products(tmp_path, monkeypatch):
     assert catalogue_for(tmp_path, monkeypatch).snapshot_bundle(
         "one", "client-001"
     ) == {
-        "snapshot": {"client_id": "client-001", "snapshot_id": "one"},
+        "snapshot": {
+            "client_id": "client-001", "snapshot_id": "one"
+        },
         "fitness": {},
         "diagnosis": {},
         "findings": {},
     }
 
 
-def test_catalogue_lists_clients_and_scopes_runs_and_snapshots(tmp_path, monkeypatch):
-    store_json(tmp_path, "runs/run-alpha/run_summary.json", {
-        "client_id": "alpha",
-        "run_id": "run-alpha",
-    })
-    store_json(tmp_path, "runs/run-beta/run_summary.json", {
-        "client_id": "beta",
-        "run_id": "run-beta",
-    })
-    store_json(tmp_path, "snapshots/snapshot-alpha/snapshot.json", {
-        "client_id": "alpha",
-        "snapshot_id": "snapshot-alpha",
-        "observation_date": "2026-08-31",
-    })
-    store_json(tmp_path, "snapshots/snapshot-beta/snapshot.json", {
-        "client_id": "beta",
-        "snapshot_id": "snapshot-beta",
-        "observation_date": "2026-08-31",
-    })
+def test_catalogue_lists_clients_and_scopes_products(
+    tmp_path, monkeypatch,
+):
+    for client_id in ("alpha", "beta"):
+        register_client(tmp_path, client_id)
+        store_json(
+            tmp_path,
+            f"{client_id}/runs/run-{client_id}/run.json",
+            {"client_id": client_id, "run_id": f"run-{client_id}"},
+        )
+        store_json(
+            tmp_path,
+            f"{client_id}/snapshots/snapshot-{client_id}/snapshot.json",
+            {
+                "client_id": client_id,
+                "snapshot_id": f"snapshot-{client_id}",
+                "observation_date": "2026-08-31",
+            },
+        )
 
     catalogue = catalogue_for(tmp_path, monkeypatch)
 
@@ -88,48 +108,48 @@ def test_catalogue_lists_clients_and_scopes_runs_and_snapshots(tmp_path, monkeyp
     ] == ["snapshot-beta"]
 
 
-def test_catalogue_includes_valid_staged_only_clients(tmp_path, monkeypatch):
-    (tmp_path / "local-data" / "staged" / "new-client").mkdir(parents=True)
-    (tmp_path / "local-data" / "staged" / "Invalid Client").mkdir()
+def test_catalogue_includes_valid_raw_inbox_clients(
+    tmp_path, monkeypatch,
+):
+    (tmp_path / "local-data" / "raw" / "new-client").mkdir(
+        parents=True
+    )
+    (tmp_path / "local-data" / "raw" / "Invalid Client").mkdir()
 
-    assert catalogue_for(tmp_path, monkeypatch).list_clients() == ["new-client"]
+    assert catalogue_for(tmp_path, monkeypatch).list_clients() == [
+        "new-client"
+    ]
 
 
-def test_catalogue_scopes_history_and_interpretations(tmp_path, monkeypatch):
-    store_json(tmp_path, "snapshots/snapshot-alpha/snapshot.json", {
-        "client_id": "alpha",
-        "snapshot_id": "snapshot-alpha",
-    })
-    store_json(tmp_path, "snapshots/snapshot-beta/snapshot.json", {
-        "client_id": "beta",
-        "snapshot_id": "snapshot-beta",
-    })
-    store_json(tmp_path, "comparisons/comparison-alpha/comparison.json", {
-        "client_id": "alpha",
-        "comparison_id": "comparison-alpha",
-    })
-    store_json(tmp_path, "comparisons/comparison-beta/comparison.json", {
-        "client_id": "beta",
-        "comparison_id": "comparison-beta",
-    })
-    store_json(tmp_path, "trends/trend-alpha/trend.json", {
-        "client_id": "alpha",
-        "trend_id": "trend-alpha",
-    })
-    store_json(tmp_path, "trends/trend-beta/trend.json", {
-        "client_id": "beta",
-        "trend_id": "trend-beta",
-    })
-    store_json(tmp_path, "interpretations/session-alpha/session.json", {
-        "session_id": "session-alpha",
-        "source_type": "snapshot",
-        "source_id": "snapshot-alpha",
-    })
-    store_json(tmp_path, "interpretations/session-beta/session.json", {
-        "session_id": "session-beta",
-        "source_type": "snapshot",
-        "source_id": "snapshot-beta",
-    })
+def test_catalogue_scopes_history_and_interpretations(
+    tmp_path, monkeypatch,
+):
+    for client_id in ("alpha", "beta"):
+        register_client(tmp_path, client_id)
+        store_json(
+            tmp_path,
+            f"{client_id}/comparisons/comparison-{client_id}/comparison.json",
+            {
+                "client_id": client_id,
+                "comparison_id": f"comparison-{client_id}",
+            },
+        )
+        store_json(
+            tmp_path,
+            f"{client_id}/trends/trend-{client_id}/trend.json",
+            {
+                "client_id": client_id,
+                "trend_id": f"trend-{client_id}",
+            },
+        )
+        store_json(
+            tmp_path,
+            f"{client_id}/interpretations/session-{client_id}/session.json",
+            {
+                "client_id": client_id,
+                "interpretation_id": f"session-{client_id}",
+            },
+        )
 
     catalogue = catalogue_for(tmp_path, monkeypatch)
 
@@ -141,75 +161,82 @@ def test_catalogue_scopes_history_and_interpretations(tmp_path, monkeypatch):
         "trend-alpha"
     ]
     assert catalogue.list_interpretations("alpha") == [{
-        "session_id": "session-alpha",
-        "source_type": "snapshot",
-        "source_id": "snapshot-alpha",
         "client_id": "alpha",
+        "interpretation_id": "session-alpha",
     }]
 
 
-def test_snapshot_bundle_rejects_another_clients_snapshot(tmp_path, monkeypatch):
-    store_json(tmp_path, "snapshots/one/snapshot.json", {
+def test_snapshot_bundle_rejects_another_clients_snapshot(
+    tmp_path, monkeypatch,
+):
+    register_client(tmp_path, "alpha")
+    store_json(tmp_path, "alpha/snapshots/one/snapshot.json", {
         "client_id": "alpha",
         "snapshot_id": "one",
     })
 
     try:
         catalogue_for(tmp_path, monkeypatch).snapshot_bundle("one", "beta")
-    except ValueError as error:
-        assert "does not belong to client beta" in str(error)
+    except FileNotFoundError:
+        pass
     else:
-        raise AssertionError("Expected cross-client snapshot access to be rejected")
+        raise AssertionError("Expected cross-client access to be rejected")
 
 
 def test_client_id_validation_matches_dataplatform_contract():
     assert validate_client_id("client_001") == "client_001"
-
     for invalid in ("Client-001", "client 001", "-client", ""):
         try:
             validate_client_id(invalid)
         except ValueError:
             pass
         else:
-            raise AssertionError(f"Expected invalid client ID to be rejected: {invalid}")
+            raise AssertionError(
+                f"Expected invalid client ID to be rejected: {invalid}"
+            )
 
 
-def test_read_table_follows_governed_artifact_reference(tmp_path, monkeypatch):
+def test_read_table_follows_governed_artifact_reference(
+    tmp_path, monkeypatch,
+):
     store_text(
         tmp_path,
         "curated",
-        "snapshots/one/data/evidence.csv",
+        "client-001/snapshots/one/data/evidence.csv",
         "ProjectID,Count\nP1,3\n",
     )
-
     frame = catalogue_for(tmp_path, monkeypatch).read_table(
-        "curated/snapshots/one/data/evidence.csv"
+        "curated/client-001/snapshots/one/data/evidence.csv"
     )
-
     assert frame.to_dict("records") == [{"ProjectID": "P1", "Count": 3}]
 
 
-def test_read_snapshot_dataset_resolves_processed_manifest_reference(
-    tmp_path, monkeypatch
+def test_read_snapshot_dataset_resolves_manifest_reference(
+    tmp_path, monkeypatch,
 ):
     store_text(
         tmp_path,
         "processed",
-        "history/one/tasks.csv",
+        "client-001/snapshots/one/tasks.csv",
         "TaskID,ProjectID\nT1,P1\n",
     )
-
     frame = catalogue_for(tmp_path, monkeypatch).read_snapshot_dataset(
-        {"datasets": {"tasks": "history/one/tasks.csv"}},
+        {
+            "datasets": {
+                "tasks": "client-001/snapshots/one/tasks.csv"
+            }
+        },
         "tasks",
     )
+    assert frame.to_dict("records") == [
+        {"TaskID": "T1", "ProjectID": "P1"}
+    ]
 
-    assert frame.to_dict("records") == [{"TaskID": "T1", "ProjectID": "P1"}]
 
-
-def test_catalogue_rejects_artifact_path_traversal(tmp_path, monkeypatch):
+def test_catalogue_rejects_artifact_path_traversal(
+    tmp_path, monkeypatch,
+):
     catalogue = catalogue_for(tmp_path, monkeypatch)
-
     try:
         catalogue.read_artifact("curated/../../outside.csv")
     except ValueError as error:

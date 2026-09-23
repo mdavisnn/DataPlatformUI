@@ -36,14 +36,14 @@ connect to remote storage.
 Choose a stable lowercase `client_id` containing letters, numbers, hyphens or
 underscores. Do not use a display name that may change.
 
-Place the source files beneath that client's staging folder in DataPlatform:
+Place source files directly beneath that client's raw inbox:
 
 ```text
-local-data/staged/client-001/projects.csv
-local-data/staged/client-001/tasks.csv
-local-data/staged/client-001/resources.csv
-local-data/staged/client-001/assignments.csv
-local-data/staged/client-001/dependencies.csv
+local-data/raw/client-001/projects.csv
+local-data/raw/client-001/tasks.csv
+local-data/raw/client-001/resources.csv
+local-data/raw/client-001/assignments.csv
+local-data/raw/client-001/dependencies.csv
 ```
 
 CSV and supported Excel files may be used. The canonical v2 model contains five
@@ -54,16 +54,15 @@ missing evidence through capability fitness.
 
 ### Inspect one client
 
-Inspect only the intended client's staged evidence:
+Inspect only the intended client's raw-inbox evidence:
 
 ```powershell
 python -m lab.inspect --client-id client-001
 ```
 
-Inspection copies that client's supported files into governed raw storage
-without changing their contents, creates a technical `run_id`, then discovers
-and profiles only those newly ingested files. Keep the returned run ID for
-assessment.
+Inspection discovers and profiles supported inbox files without changing their
+contents. After profiling succeeds, it archives the exact evidence beneath the
+client's immutable run path. Keep the returned run ID for assessment.
 
 ### Assess the run
 
@@ -71,7 +70,7 @@ Use the business date represented by the evidence, not the technical processing
 date:
 
 ```powershell
-python -m lab.assess --client-id client-001 --run-id <run_id> --observation-date <YYYY-MM-DD>
+python -m lab.assess --run-id <run_id> --observation-date <YYYY-MM-DD>
 ```
 
 Assessment canonicalises the evidence, evaluates fitness by capability and
@@ -80,7 +79,7 @@ registers an immutable `snapshot_id`.
 ### Diagnose the snapshot
 
 ```powershell
-python -m lab.diagnose --client-id client-001 --snapshot-id <snapshot_id>
+python -m lab.diagnose --snapshot-id <snapshot_id>
 ```
 
 Diagnosis runs each eligible deterministic domain and stores:
@@ -89,7 +88,8 @@ Diagnosis runs each eligible deterministic domain and stores:
 - `diagnosis.json`;
 - `findings.json`;
 - `diagnostic_summary.md`;
-- supporting CSV evidence beneath `curated/snapshots/<snapshot_id>/`.
+- supporting CSV evidence beneath
+  `curated/<client_id>/snapshots/<snapshot_id>/`.
 
 A result of `PASS WITH LIMITATIONS` means eligible diagnostics completed with
 recorded fitness caveats. It is not the same as a failed diagnosis.
@@ -98,7 +98,7 @@ When a capability is not fit, it is skipped by default. Only acknowledge a
 known limitation deliberately:
 
 ```powershell
-python -m lab.diagnose --client-id client-001 --snapshot-id <snapshot_id> --allow-not-fit resource
+python -m lab.diagnose --snapshot-id <snapshot_id> --allow-not-fit resource
 ```
 
 The override is capability-specific and does not change the stored fitness
@@ -132,9 +132,9 @@ interpretations shown elsewhere in the console are filtered to the same client.
 
 ### Workspace
 
-The workspace summarises canonical datasets, deterministic Findings and fitness.
-No Findings does not prove that a portfolio is healthy; it only means the
-completed configured rules emitted no conditions.
+The workspace presents the backend-produced executive summary: portfolio scale,
+diagnostic coverage, evidence limitations, exception concentration and priority
+Findings. No Findings does not prove that a portfolio is healthy.
 
 ### Evidence & fitness
 
@@ -151,6 +151,13 @@ Poor delivery performance is not itself a structural fitness failure.
 
 Filter deterministic Findings by domain and severity. Expand a Finding to see
 its rule, evidence values, affected entity IDs and supporting governed CSVs.
+
+### Project health
+
+Compare projects across separate diagnostic lenses. `No finding` means that a
+capability completed without producing a Finding for that project.
+`Not assessed` means the capability did not run or is not implemented. Select
+a project to inspect the authoritative Finding IDs behind the matrix row.
 
 ### Plan on a page
 
@@ -232,17 +239,17 @@ human-authored and must cite valid Finding IDs.
 
 ## 8. Run the lab
 
-The operation page uses the client selected in the sidebar. **Inspect staged
+The operation page uses the client selected in the sidebar. **Inspect raw
 evidence** calls DataPlatform's client-scoped inspection command, which:
 
-1. ingests supported files from `staged/<client_id>/` without changing them;
-2. excludes other clients and stale raw files from the run;
-3. discovers and profiles the exact files just ingested;
-4. creates a client-scoped run awaiting assessment.
+1. discovers supported files directly beneath `raw/<client_id>/`;
+2. excludes other clients and archived run evidence;
+3. profiles the exact files admitted to the run;
+4. archives those files only after inspection succeeds.
 
-Keep the selected client and staging folder aligned before starting inspection.
-Assessment and diagnosis also pass the selected client to DataPlatform, which
-rejects a run or snapshot belonging to another client before writing outputs.
+Keep the selected client and raw inbox aligned before starting inspection.
+Assessment and diagnosis pass only the selected run or snapshot identity;
+DataPlatform resolves and validates its client ownership.
 The controls run synchronously and remain intended for local, consultant-led
 operation rather than unattended orchestration.
 
@@ -260,7 +267,7 @@ console after it completes.
 The generated snapshot has normal backend lineage and can be preserved if you
 want to exercise history, although a comparison still requires a second
 observation. Rerunning the command reuses the completed fixed demo. It refuses
-to overwrite any changed files already present beneath `staged/demo-ui`.
+to overwrite any changed files already present beneath `raw/demo-ui`.
 
 ## Troubleshooting
 
@@ -274,7 +281,7 @@ to overwrite any changed files already present beneath `staged/demo-ui`.
 Check `DATA_PLATFORM_STORAGE_ROOT` and verify that this exists:
 
 ```text
-metadata/snapshots/<snapshot_id>/snapshot.json
+metadata/<client_id>/snapshots/<snapshot_id>/snapshot.json
 ```
 
 Inspection alone does not create a selectable observation; assessment does.

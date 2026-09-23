@@ -18,11 +18,15 @@ existing Findings only when their governed supporting evidence contains usable
 dates. It does not calculate Findings, infer missing dates, or require the
 snapshot to be preserved for history.
 
+The **Executive snapshot** and **Project health** pages consume the saved
+summary and cross-domain project matrix produced by DataPlatform. The console
+does not recreate their counts or classifications from canonical data.
+
 ## Release 2 — Operate
 
 The **Run the lab** page follows the existing consultant sequence:
 
-1. stage evidence in DataPlatform's configured `raw` storage area;
+1. place evidence in the client's configured `raw/<client_id>/` inbox;
 2. inspect and profile the evidence;
 3. assess the inspected run for an explicit business observation date;
 4. diagnose the resulting canonical snapshot.

@@ -21,9 +21,9 @@ The sidebar first selects a client, then an observation belonging to that
 client. Review pages scope runs, snapshots, comparisons, trends and
 interpretations to the selected `client_id` before displaying them.
 
-The **Run the lab** page passes the selected `client_id` to DataPlatform.
-Inspection ingests only that client's staged files before discovering and
-profiling the exact evidence admitted to the run. The page remains a local,
+The **Run the lab** page passes the selected `client_id` when inspection
+begins. Assessment and diagnosis pass only the run or snapshot identity, from
+which DataPlatform resolves client ownership. The page remains a local,
 consultant-facing control surface rather than a production orchestration layer.
 
 ## DataPlatform contract
@@ -101,38 +101,41 @@ browser tab alone does not stop the server.
 
 ## Prepare DataPlatform evidence
 
-From the DataPlatform repository, stage each client's source files in its own
-folder:
+From the DataPlatform repository, place each client's source files directly in
+its raw inbox:
 
 ```text
-local-data/staged/client-001/projects.csv
-local-data/staged/client-001/tasks.csv
-local-data/staged/client-001/resources.csv
-local-data/staged/client-001/assignments.csv
-local-data/staged/client-001/dependencies.csv
+local-data/raw/client-001/projects.csv
+local-data/raw/client-001/tasks.csv
+local-data/raw/client-001/resources.csv
+local-data/raw/client-001/assignments.csv
+local-data/raw/client-001/dependencies.csv
 ```
 
 Then run the governed workflow:
 
 ```powershell
 python -m lab.inspect --client-id client-001
-python -m lab.assess --client-id client-001 --run-id <run_id> --observation-date <YYYY-MM-DD>
-python -m lab.diagnose --client-id client-001 --snapshot-id <snapshot_id>
+python -m lab.assess --run-id <run_id> --observation-date <YYYY-MM-DD>
+python -m lab.diagnose --snapshot-id <snapshot_id>
 ```
 
-Inspection ingests only the selected client's staged files before discovery and
-profiling.
+Inspection profiles only supported files directly beneath the selected
+client's raw inbox, then archives the exact successful run sources.
 
 Refresh the UI after the commands complete. Select the client and then the
 resulting observation from the sidebar.
 
 ## Console pages
 
-- **Workspace** summarises the selected observation and its priority Findings.
+- **Workspace** presents the backend-produced executive snapshot, diagnostic
+  coverage, evidence limitations and priority Findings.
 - **Evidence & fitness** separates structural fitness, blockers, caveats and
   unavailable rules from delivery conditions.
 - **Findings** shows deterministic conditions, affected entities, rules and
   supporting governed evidence.
+- **Project health** compares projects across separate backend-produced
+  portfolio, schedule, resource, reporting and dependency dimensions.
 - **Plan on a page** groups canonical project forecast bars by portfolio for
   the selected snapshot. Filter to one portfolio, then select a project bar or
   use the project picker to drill into its task schedule. Both levels overlay
@@ -144,9 +147,9 @@ resulting observation from the sidebar.
   while retaining the underlying governed evidence on demand.
 - **Interpretations** lists recorded human interpretation sessions separately
   from deterministic products.
-- **Run the lab** provides prototype controls for assessment and diagnosis. Its
-  inspection action also performs client-scoped staged-file ingestion. Every
-  action passes the selected client to DataPlatform for an ownership check.
+- **Run the lab** provides prototype controls for inspection, assessment and
+  diagnosis. Client identity is supplied only when inspection begins;
+  downstream ownership is resolved from the run or snapshot metadata.
 
 ## Optional history and interpretation
 
@@ -175,7 +178,7 @@ point-in-time observation dated `2026-08-31`, with backend-produced fitness,
 Findings and lineage. It is not preserved for history automatically.
 
 The fixed demo is safe to rerun: an existing completed observation is reused,
-and changed files already present in `staged/demo-ui` are never overwritten.
+and changed files already present in `raw/demo-ui` are never overwritten.
 
 ## Tests
 
