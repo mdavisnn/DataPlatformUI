@@ -136,6 +136,12 @@ The workspace presents the backend-produced executive summary: portfolio scale,
 diagnostic coverage, evidence limitations, exception concentration and priority
 Findings. No Findings does not prove that a portfolio is healthy.
 
+The portfolio attention map plots projects using saved schedule-condition and
+resource-conflict percentages. Bubble size represents saved dependency
+connectivity and colour represents the highest Finding severity. Select a
+project to inspect its headline measures and Findings. Dashed lines show the
+saved portfolio medians; they are comparison context rather than thresholds.
+
 ### Evidence & fitness
 
 Review each capability separately:
@@ -163,6 +169,11 @@ Compare projects across separate diagnostic lenses. `No finding` means that a
 capability completed without producing a Finding for that project.
 `Not assessed` means the capability did not run or is not implemented. Select
 a project to inspect the authoritative Finding IDs behind the matrix row.
+
+The selected project's diagnostic fingerprint shows each saved measure's
+percentile within the current observation. The shaded band is the middle half
+of projects, the tick is the median and a diamond marks a value outside the IQR
+fence. A high percentile means different from peers, not necessarily poor.
 
 ### Schedule
 

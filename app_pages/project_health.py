@@ -4,8 +4,10 @@ import pandas as pd
 import streamlit as st
 
 from components.console import render_finding, render_hero, render_metric_row
+from components.project_profile import project_fingerprint_chart
 from services.console_context import console_context
 from services.platform_reader import MetadataReadError
+from services.project_profile import prepare_project_fingerprint
 
 
 LENS_COLUMNS = [
@@ -32,6 +34,7 @@ if not snapshot:
 
 bundle = catalogue.snapshot_bundle(snapshot["snapshot_id"], client_id)
 reference = bundle["diagnosis"].get("project_health_object")
+profile_reference = bundle["diagnosis"]["project_profile_object"]
 if not reference:
     st.warning(
         "This observation predates the project-health contract. Re-run "
@@ -42,6 +45,7 @@ if not reference:
 
 try:
     matrix = catalogue.read_table(reference)
+    profile = catalogue.read_table(profile_reference)
 except (FileNotFoundError, ValueError, MetadataReadError) as error:
     st.warning(f"Project health evidence is unavailable: {error}")
     st.stop()
@@ -158,6 +162,39 @@ status_table = {
 }
 status_table["Data fitness"] = project.get("DataFitness", "Unknown")
 st.table(status_table, border="horizontal", width="content")
+
+st.subheader("Project diagnostic fingerprint")
+st.caption(
+    "The marker shows this project's percentile within the selected "
+    "observation. The shaded band is the middle half of projects and the "
+    "tick is the portfolio median. A high percentile means different, not "
+    "necessarily poor. Diamonds identify values outside the IQR fence."
+)
+fingerprint = prepare_project_fingerprint(profile, str(project_id))
+available_profile = fingerprint[
+    fingerprint["Availability"].eq("Available")
+    & fingerprint["PercentileRank"].notna()
+]
+if available_profile.empty:
+    st.info("No comparable profile measures are available for this project.")
+else:
+    st.altair_chart(
+        project_fingerprint_chart(fingerprint),
+        width="stretch",
+    )
+
+unavailable_profile = fingerprint[
+    ~fingerprint["Availability"].eq("Available")
+]
+if not unavailable_profile.empty:
+    st.caption("Measures without sufficient evidence")
+    st.dataframe(
+        unavailable_profile[[
+            "Domain", "MetricLabel", "Availability", "AvailabilityReason",
+        ]],
+        hide_index=True,
+        width="stretch",
+    )
 
 finding_ids = {
     value for value in str(project.get("FindingIDs", "")).split("|")

@@ -129,14 +129,18 @@ resulting observation from the sidebar.
 ## Console pages
 
 - **Workspace** presents the backend-produced executive snapshot, diagnostic
-  coverage, evidence limitations and priority Findings.
+  coverage, evidence limitations and priority Findings. Its project attention
+  map positions projects by schedule-condition and resource-conflict exposure,
+  with dependency connectivity and Finding severity retained as separate cues.
 - **Evidence & fitness** separates structural fitness, blockers, caveats and
   unavailable rules from delivery conditions. Capability details name the
   affected dataset and field and explain each stable rule in plain English.
 - **Findings** shows deterministic conditions, affected entities, rules and
   supporting governed evidence.
 - **Project health** compares projects across separate backend-produced
-  portfolio, schedule, resource, reporting and dependency dimensions.
+  portfolio, schedule, resource, reporting and dependency dimensions. The
+  selected project's diagnostic fingerprint shows its current-snapshot
+  percentiles and IQR context without creating an overall score.
 - **Schedule** reads backend-produced project, activity and condition products
   to show overdue work, milestone position, duration distribution and schedule
   evidence coverage. Missing float, criticality or hierarchy evidence remains

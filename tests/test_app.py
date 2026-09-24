@@ -77,6 +77,10 @@ def write_snapshot(tmp_path, client_id, snapshot_id, observation_date):
         f"curated/{client_id}/snapshots/{snapshot_id}/"
         "overview/project_health.csv"
     )
+    project_profile_reference = (
+        f"curated/{client_id}/snapshots/{snapshot_id}/"
+        "overview/project_diagnostic_profile.csv"
+    )
     schedule_products = {
         "project_summary": (
             f"curated/{client_id}/snapshots/{snapshot_id}/schedule/"
@@ -147,6 +151,7 @@ def write_snapshot(tmp_path, client_id, snapshot_id, observation_date):
         "snapshot_id": snapshot_id,
         "execution_status": "success",
         "project_health_object": project_health_reference,
+        "project_profile_object": project_profile_reference,
         "diagnostics": [
             {
                 "capability": "schedule",
@@ -282,6 +287,42 @@ def write_snapshot(tmp_path, client_id, snapshot_id, observation_date):
         "No finding,No finding,Not assessed,Fit,1,1,0,0,SCH-1\n"
         "P2,Beta,PORT-B,,Active,Green,1,No finding,No finding,"
         "No finding,No finding,Not assessed,Fit,0,0,0,0,\n",
+        encoding="utf-8",
+    )
+    profile = curated / "overview" / "project_diagnostic_profile.csv"
+    profile.write_text(
+        "ProjectID,ProjectName,Domain,MetricID,MetricLabel,Value,Unit,"
+        "PercentileRank,PopulationCount,Q1,Median,Q3,LowerFence,UpperFence,"
+        "OutsideIqr,Availability,AvailabilityReason,SourceDiagnosticID,"
+        "SourceProduct\n"
+        "P1,Alpha,Portfolio,task_count,Tasks,1,tasks,50,2,1,1,1,1,1,"
+        "false,Available,,canonical_observation,processed/tasks.csv\n"
+        "P1,Alpha,Schedule,schedule_condition_task_pct,Tasks with schedule "
+        "conditions,50,%,100,2,12.5,25,37.5,-25,75,false,Available,,"
+        "schedule_health,curated/schedule.csv\n"
+        "P1,Alpha,Resources,conflict_resource_pct,Resources with conflicts,"
+        "100,%,100,2,25,50,75,-50,150,false,Available,,resource_conflicts,"
+        "curated/resource.csv\n"
+        "P1,Alpha,Resources,assignment_coverage_pct,Task assignment coverage,"
+        "100,%,100,2,25,50,75,-50,150,false,Available,,resource_conflicts,"
+        "curated/resource.csv\n"
+        "P1,Alpha,Dependencies,average_dependency_connectivity,Average task "
+        "connectivity,1,connections,100,2,0.25,0.5,0.75,-0.5,1.5,false,"
+        "Available,,dependency_structure,curated/dependency.csv\n"
+        "P2,Beta,Portfolio,task_count,Tasks,1,tasks,50,2,1,1,1,1,1,false,"
+        "Available,,canonical_observation,processed/tasks.csv\n"
+        "P2,Beta,Schedule,schedule_condition_task_pct,Tasks with schedule "
+        "conditions,0,%,50,2,12.5,25,37.5,-25,75,false,Available,,"
+        "schedule_health,curated/schedule.csv\n"
+        "P2,Beta,Resources,conflict_resource_pct,Resources with conflicts,"
+        "0,%,50,2,25,50,75,-50,150,false,Available,,resource_conflicts,"
+        "curated/resource.csv\n"
+        "P2,Beta,Resources,assignment_coverage_pct,Task assignment coverage,"
+        "0,%,50,2,25,50,75,-50,150,false,Available,,resource_conflicts,"
+        "curated/resource.csv\n"
+        "P2,Beta,Dependencies,average_dependency_connectivity,Average task "
+        "connectivity,0,connections,50,2,0.25,0.5,0.75,-0.5,1.5,false,"
+        "Available,,dependency_structure,curated/dependency.csv\n",
         encoding="utf-8",
     )
     schedule = curated / "schedule"
@@ -441,6 +482,9 @@ def test_workspace_renders_governed_snapshot(tmp_path, monkeypatch):
         metric.label == "Findings" and metric.value == "1"
         for metric in app.metric
     )
+    assert any(
+        item.value == "Portfolio attention map" for item in app.subheader
+    )
     for page in (
         "app_pages/evidence.py",
         "app_pages/findings.py",
@@ -474,6 +518,10 @@ def test_project_health_uses_governed_matrix(tmp_path, monkeypatch):
     assert app.selectbox(key=f"health_project_{snapshot_id}").value == "P1"
     assert any(
         item.value == "Project findings" for item in app.subheader
+    )
+    assert any(
+        item.value == "Project diagnostic fingerprint"
+        for item in app.subheader
     )
 
 

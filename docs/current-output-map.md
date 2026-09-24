@@ -13,6 +13,7 @@ beneath the storage root shared with DataPlatform.
 | Diagnostic execution and executive summary | `metadata/<client_id>/snapshots/<snapshot_id>/diagnosis.json` | Executive snapshot |
 | Deterministic Findings | `metadata/<client_id>/snapshots/<snapshot_id>/findings.json` | Workspace, Findings and drill-down |
 | Project comparison matrix | `curated/<client_id>/snapshots/<snapshot_id>/overview/project_health.csv` | Project health |
+| Cross-domain project measures, percentiles and IQR context | `curated/<client_id>/snapshots/<snapshot_id>/overview/project_diagnostic_profile.csv` | Workspace attention map and Project health fingerprint |
 | Schedule project and activity products | Named `schedule` products in `diagnosis.json.diagnostics[].products` | Schedule |
 | Resource, project, assignment-timeline, conflict and unassigned-work products | Named `resource` products in `diagnosis.json.diagnostics[].products` | Resources |
 | Dependency edges, task connectivity and project coverage | Named `dependency` products in `diagnosis.json.diagnostics[].products` | Dependencies |
