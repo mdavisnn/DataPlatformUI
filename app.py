@@ -132,6 +132,16 @@ page = st.navigation(
                 icon=":material/groups:",
             ),
             st.Page(
+                "app_pages/dependencies.py",
+                title="Dependencies",
+                icon=":material/account_tree:",
+            ),
+            st.Page(
+                "app_pages/patterns.py",
+                title="Patterns",
+                icon=":material/scatter_plot:",
+            ),
+            st.Page(
                 "app_pages/plan.py",
                 title="Plan on a page",
                 icon=":material/view_timeline:",

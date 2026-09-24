@@ -48,7 +48,8 @@ def write_snapshot(tmp_path, client_id, snapshot_id, observation_date):
                 "unavailable_rules": [],
             }
             for name in (
-                "data", "schedule", "resource", "portfolio", "reporting"
+                "data", "schedule", "resource", "dependency",
+                "portfolio", "reporting", "exploratory"
             )
         },
     })
@@ -107,6 +108,38 @@ def write_snapshot(tmp_path, client_id, snapshot_id, observation_date):
             f"curated/{client_id}/snapshots/{snapshot_id}/resource/"
             "unassigned_work.csv"
         ),
+        "assignment_timeline": (
+            f"curated/{client_id}/snapshots/{snapshot_id}/resource/"
+            "assignment_timeline.csv"
+        ),
+    }
+    dependency_products = {
+        "edges": (
+            f"curated/{client_id}/snapshots/{snapshot_id}/dependency/"
+            "dependency_edges.csv"
+        ),
+        "task_connectivity": (
+            f"curated/{client_id}/snapshots/{snapshot_id}/dependency/"
+            "task_connectivity.csv"
+        ),
+        "project_summary": (
+            f"curated/{client_id}/snapshots/{snapshot_id}/dependency/"
+            "project_dependency_summary.csv"
+        ),
+    }
+    exploratory_products = {
+        "observations": (
+            f"curated/{client_id}/snapshots/{snapshot_id}/exploratory/"
+            "distribution_observations.csv"
+        ),
+        "distribution_summary": (
+            f"curated/{client_id}/snapshots/{snapshot_id}/exploratory/"
+            "distribution_summary.csv"
+        ),
+        "interestingness": (
+            f"curated/{client_id}/snapshots/{snapshot_id}/exploratory/"
+            "interestingness.csv"
+        ),
     }
     _write_json(snapshot_root / "diagnosis.json", {
         "format_version": "1.0",
@@ -149,11 +182,49 @@ def write_snapshot(tmp_path, client_id, snapshot_id, observation_date):
                     "assignment_date_coverage_pct": 100.0,
                     "resource_capacity_coverage_pct": 100.0,
                     "conflict_threshold_pct": 100,
+                    "conflict_red_threshold_pct": 130,
                     "capacity_assumption": (
                         "Over-allocation uses concurrent assignment "
                         "allocation above the configured 100% threshold."
                     ),
                     "unavailable_measures": ["true_utilisation"],
+                },
+            },
+            {
+                "capability": "dependency",
+                "diagnostic_id": "dependency_structure",
+                "status": "success",
+                "products": dependency_products,
+                "metrics": {
+                    "dependencies_analysed": 1,
+                    "tasks_analysed": 2,
+                    "linked_tasks": 2,
+                    "dependency_coverage_pct": 100.0,
+                    "cross_project_dependencies": 1,
+                    "hub_tasks": 0,
+                    "bridge_dependencies": 1,
+                    "articulation_tasks": 0,
+                    "cycle_tasks": 0,
+                },
+            },
+            {
+                "capability": "exploratory",
+                "diagnostic_id": "distribution_interestingness",
+                "status": "success",
+                "products": exploratory_products,
+                "metrics": {
+                    "distribution_count": 2,
+                    "observation_count": 4,
+                    "interesting_value_count": 1,
+                    "unusual_projects": 1,
+                    "unusual_resources": 0,
+                    "iqr_multiplier": 1.5,
+                    "minimum_population": 4,
+                    "method": (
+                        "Values outside the configured IQR fence are "
+                        "flagged; percentile rank is context only."
+                    ),
+                    "unavailable_metrics": [],
                 },
             },
         ],
@@ -173,8 +244,8 @@ def write_snapshot(tmp_path, client_id, snapshot_id, observation_date):
                 "by_severity": {"high": 1},
             },
             "diagnostics": {
-                "total": 5,
-                "completed": 5,
+                "total": 7,
+                "completed": 7,
                 "skipped": 0,
                 "failed": 0,
             },
@@ -275,6 +346,77 @@ def write_snapshot(tmp_path, client_id, snapshot_id, observation_date):
         "P2,T2,Build,2026-02-01,2026-04-15,Active\n",
         encoding="utf-8",
     )
+    (resource / "assignment_timeline.csv").write_text(
+        "AssignmentID,ResourceID,ResourceName,Role,Team,ProjectID,"
+        "TaskID,TaskName,AllocationPct,AssignmentStart,AssignmentFinish,"
+        "TaskForecastStart,TaskForecastFinish,DisplayStart,DisplayFinish,"
+        "StartDateSource,FinishDateSource,DateSource,DateComplete,"
+        "OverlapsConflict,ConflictPeriodCount,PeakConflictAllocationPct,"
+        "ConflictStatus\n"
+        "A1,R1,Planner,Planner,Controls,P1,T1,Design,70,2026-01-01,"
+        "2026-01-31,2026-01-01,2026-01-31,2026-01-01,2026-01-31,"
+        "Assignment,Assignment,Assignment dates,true,true,1,130,Red\n"
+        "A2,R1,Planner,Planner,Controls,P2,T2,Build,60,,,2026-02-01,"
+        "2026-04-15,2026-02-01,2026-04-15,Task forecast,Task forecast,"
+        "Task forecast dates,true,false,0,,Green\n",
+        encoding="utf-8",
+    )
+    dependency = curated / "dependency"
+    dependency.mkdir(parents=True, exist_ok=True)
+    (dependency / "dependency_edges.csv").write_text(
+        "DependencyID,PredecessorTaskID,PredecessorTaskName,"
+        "PredecessorProjectID,SuccessorTaskID,SuccessorTaskName,"
+        "SuccessorProjectID,RelationshipType,LagDays,CrossProject,"
+        "IsBridge,InCycle,PredecessorX,PredecessorY,SuccessorX,"
+        "SuccessorY\n"
+        "D1,T1,Design,P1,T2,Build,P2,FS,0,true,true,false,1,0,-1,0\n",
+        encoding="utf-8",
+    )
+    (dependency / "task_connectivity.csv").write_text(
+        "TaskID,TaskName,ProjectID,PredecessorCount,SuccessorCount,"
+        "ConnectivityDegree,CrossProjectDependencyCount,IsHub,"
+        "IsArticulation,InCycle,NetworkX,NetworkY\n"
+        "T1,Design,P1,0,1,1,1,false,false,false,1,0\n"
+        "T2,Build,P2,1,0,1,1,false,false,false,-1,0\n",
+        encoding="utf-8",
+    )
+    (dependency / "project_dependency_summary.csv").write_text(
+        "ProjectID,TaskCount,DependencyCount,InternalDependencyCount,"
+        "CrossProjectIncoming,CrossProjectOutgoing,LinkedTaskCount,"
+        "UnlinkedTaskCount,DependencyCoveragePct,HubTaskCount,"
+        "ArticulationTaskCount,CycleTaskCount,AverageConnectivity,"
+        "MaxConnectivity\n"
+        "P1,1,1,0,0,1,1,0,100,0,0,0,1,1\n"
+        "P2,1,1,0,1,0,1,0,100,0,0,0,1,1\n",
+        encoding="utf-8",
+    )
+    exploratory = curated / "exploratory"
+    exploratory.mkdir(parents=True, exist_ok=True)
+    (exploratory / "distribution_observations.csv").write_text(
+        "EntityType,EntityID,EntityName,Metric,Value,PercentileRank\n"
+        "Project,P1,Alpha,TaskCount,1,50\n"
+        "Project,P2,Beta,TaskCount,1,50\n"
+        "Project,P1,Alpha,ProjectDurationDays,89,50\n"
+        "Project,P2,Beta,ProjectDurationDays,88,100\n",
+        encoding="utf-8",
+    )
+    (exploratory / "distribution_summary.csv").write_text(
+        "EntityType,Metric,PopulationCount,EvidenceCount,CoveragePct,"
+        "Minimum,Q1,Median,Q3,Maximum,Mean,IQR,LowerFence,UpperFence,"
+        "OutlierCount\n"
+        "Project,TaskCount,2,2,100,1,1,1,1,1,1,0,1,1,0\n"
+        "Project,ProjectDurationDays,2,2,100,88,88.25,88.5,88.75,"
+        "89,88.5,0.5,87.5,89.5,0\n",
+        encoding="utf-8",
+    )
+    (exploratory / "interestingness.csv").write_text(
+        "EntityType,EntityID,EntityName,Metric,Value,PopulationMedian,"
+        "Q1,Q3,LowerFence,UpperFence,PercentileRank,Direction,"
+        "RatioToMedian,RuleID,Explanation\n"
+        "Project,P1,Alpha,TaskCount,10,1,1,1,1,1,100,High,10,"
+        "EXP-PROJECT-TASK-COUNT,TaskCount is outside the high IQR fence.\n",
+        encoding="utf-8",
+    )
 
 
 def app_for(tmp_path, monkeypatch):
@@ -305,6 +447,8 @@ def test_workspace_renders_governed_snapshot(tmp_path, monkeypatch):
         "app_pages/project_health.py",
         "app_pages/schedule.py",
         "app_pages/resources.py",
+        "app_pages/dependencies.py",
+        "app_pages/patterns.py",
         "app_pages/plan.py",
         "app_pages/history.py",
         "app_pages/interpretations.py",
@@ -400,14 +544,95 @@ def test_resource_lens_reads_backend_products(tmp_path, monkeypatch):
         item.value == "Resource concentration and cross-project usage"
         for item in app.subheader
     )
+    app.segmented_control(
+        key=f"resource_view_{snapshot_id}"
+    ).set_value("By person").run()
+    assert not app.exception
     assert any(
-        item.value == "Project assignment coverage"
+        item.value == "Plan on a page by person"
         for item in app.subheader
+    )
+    assert any(
+        metric.label == "Date fallbacks" and metric.value == "1"
+        for metric in app.metric
+    )
+    assert any(
+        "Green means no calculated conflict" in item.value
+        for item in app.caption
+    )
+    app.segmented_control(
+        key=f"resource_view_{snapshot_id}"
+    ).set_value("By project").run()
+    assert not app.exception
+    assert any(
+        item.value == "Compare projects" for item in app.subheader
     )
     app.selectbox(
         key=f"resource_project_{snapshot_id}"
     ).set_value("P2").run()
     assert not app.exception
+
+
+def test_dependency_lens_reads_backend_graph_products(
+    tmp_path, monkeypatch,
+):
+    snapshot_id = "snapshot-dependency"
+    write_snapshot(tmp_path, "client-001", snapshot_id, "2026-09-01")
+    app = app_for(tmp_path, monkeypatch)
+
+    app.switch_page("app_pages/dependencies.py").run()
+
+    assert not app.exception
+    assert any(
+        metric.label == "Cross-project links" and metric.value == "1"
+        for metric in app.metric
+    )
+    assert any(
+        item.value == "Dependency network" for item in app.subheader
+    )
+    assert any(
+        "Shows how tasks depend on one another" in item.value
+        for item in app.caption
+    )
+    app.selectbox(
+        key=f"dependency_project_{snapshot_id}"
+    ).set_value("P1").run()
+    assert not app.exception
+
+
+def test_patterns_lens_reads_saved_distributions(
+    tmp_path, monkeypatch,
+):
+    snapshot_id = "snapshot-patterns"
+    write_snapshot(tmp_path, "client-001", snapshot_id, "2026-09-01")
+    app = app_for(tmp_path, monkeypatch)
+
+    app.switch_page("app_pages/patterns.py").run()
+
+    assert not app.exception
+    assert any(
+        metric.label == "Unusual values" and metric.value == "1"
+        for metric in app.metric
+    )
+    assert any(
+        item.value == "What is unusual?" for item in app.subheader
+    )
+    assert any(
+        "Summarises the selected measure" in item.value
+        for item in app.caption
+    )
+    assert any(
+        "**Number of tasks**" in item.value
+        for item in app.markdown
+    )
+    app.selectbox(
+        key=f"patterns_metric_{snapshot_id}"
+    ).set_value("TaskCount").run()
+    assert not app.exception
+    assert any(
+        "The number of canonical tasks" in item.value
+        for item in app.caption
+    )
 
 
 def test_client_selection_scopes_observations(tmp_path, monkeypatch):

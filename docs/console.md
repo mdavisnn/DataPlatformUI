@@ -24,11 +24,24 @@ does not recreate their counts or classifications from canonical data.
 
 The **Schedule** and **Resources** pages consume named products recorded on
 their successful diagnostic outcomes. Schedule uses project, activity and
-condition evidence. Resources uses resource and project rollups, conflict
-periods and unassigned work. Both views expose backend-recorded coverage,
-assumptions and unavailable measures. The console applies filters and chart
-layout only; it does not recreate rule flags, allocation pressure or coverage
+condition evidence. Resources uses resource and project rollups, dated
+assignment evidence, conflict periods and unassigned work. Its Summary, By
+person and By project perspectives only arrange these saved products. Both
+pages expose backend-recorded coverage, assumptions and unavailable measures;
+the console does not recreate rule flags, allocation pressure or coverage
 calculations.
+
+The **Evidence & fitness** page combines capability summaries with their saved
+row-level fitness evidence to show descriptive rule names, affected fields and
+plain-English explanations. It does not change capability status.
+
+The **Dependencies** page consumes saved edge, task-connectivity and project
+coverage products, including backend-calculated bridges, articulation points
+and cycles. The **Patterns** page consumes long-form observations, distribution
+summaries and IQR-based interestingness evidence. Network placement, percentile
+ranks, fences and unusualness flags are therefore not recalculated in the UI.
+Friendly measure names, explanations and the glossary describe those saved
+values; interactive controls only narrow or arrange the evidence.
 
 ## Release 2 — Operate
 

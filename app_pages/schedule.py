@@ -132,6 +132,10 @@ if selected_health:
     ]
 
 st.subheader("Where schedule conditions are concentrated")
+st.caption(
+    "Shows which projects contain the most flagged schedule conditions, "
+    "helping you see where to investigate first."
+)
 condition_columns = [
     column for column in (
         "OverdueTasks", "OverdueMilestones", "VeryLongTasks",
@@ -214,6 +218,10 @@ with milestone_column:
         )
 
 st.subheader("Schedule structure and evidence coverage")
+st.caption(
+    "Compares schedule shape and shows how much expected date, hierarchy, "
+    "float, criticality and baseline evidence is available."
+)
 coverage_fields = [
     column for column in (
         "ProjectName", "ScheduleHealth", "TaskCount", "MilestoneCount",
@@ -230,6 +238,10 @@ st.dataframe(
 )
 
 st.subheader("Deterministic schedule conditions")
+st.caption(
+    "Lists factual conditions identified by configured rules. These are "
+    "evidence flags, not explanations of why delivery is behaving this way."
+)
 condition_fields = [
     column for column in (
         "Severity", "RuleID", "ProjectName", "TaskName", "TaskStart",

@@ -9,12 +9,14 @@ beneath the storage root shared with DataPlatform.
 | Run state and timestamps | `metadata/<client_id>/runs/<run_id>/run.json` | Run the lab |
 | Run sources | `metadata/<client_id>/runs/<run_id>/sources.json` | Operational context |
 | Canonical observation identity | `metadata/<client_id>/snapshots/<snapshot_id>/snapshot.json` | Shared observation context |
-| Capability fitness | `metadata/<client_id>/snapshots/<snapshot_id>/fitness.json` | Evidence & fitness |
+| Capability fitness and field-level condition evidence | `metadata/<client_id>/snapshots/<snapshot_id>/fitness.json` and its `evidence_object` | Evidence & fitness |
 | Diagnostic execution and executive summary | `metadata/<client_id>/snapshots/<snapshot_id>/diagnosis.json` | Executive snapshot |
 | Deterministic Findings | `metadata/<client_id>/snapshots/<snapshot_id>/findings.json` | Workspace, Findings and drill-down |
 | Project comparison matrix | `curated/<client_id>/snapshots/<snapshot_id>/overview/project_health.csv` | Project health |
 | Schedule project and activity products | Named `schedule` products in `diagnosis.json.diagnostics[].products` | Schedule |
-| Resource, project, conflict and unassigned-work products | Named `resource` products in `diagnosis.json.diagnostics[].products` | Resources |
+| Resource, project, assignment-timeline, conflict and unassigned-work products | Named `resource` products in `diagnosis.json.diagnostics[].products` | Resources |
+| Dependency edges, task connectivity and project coverage | Named `dependency` products in `diagnosis.json.diagnostics[].products` | Dependencies |
+| Distribution observations, summaries and unusualness evidence | Named `exploratory` products in `diagnosis.json.diagnostics[].products` | Patterns |
 | Canonical datasets | Objects referenced by `snapshot.json.datasets` | Plan on a page |
 | Detailed diagnostic evidence | Objects referenced by Findings and diagnosis outcomes | Finding evidence |
 | Historical comparison | `metadata/<client_id>/comparisons/<comparison_id>/comparison.json` | History |

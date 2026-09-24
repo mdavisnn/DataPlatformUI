@@ -131,7 +131,8 @@ resulting observation from the sidebar.
 - **Workspace** presents the backend-produced executive snapshot, diagnostic
   coverage, evidence limitations and priority Findings.
 - **Evidence & fitness** separates structural fitness, blockers, caveats and
-  unavailable rules from delivery conditions.
+  unavailable rules from delivery conditions. Capability details name the
+  affected dataset and field and explain each stable rule in plain English.
 - **Findings** shows deterministic conditions, affected entities, rules and
   supporting governed evidence.
 - **Project health** compares projects across separate backend-produced
@@ -140,9 +141,18 @@ resulting observation from the sidebar.
   to show overdue work, milestone position, duration distribution and schedule
   evidence coverage. Missing float, criticality or hierarchy evidence remains
   visibly unavailable.
-- **Resources** reads backend-produced resource and project rollups, conflict
-  periods and unassigned work. Planned allocation pressure is kept distinct
-  from actual utilisation and unsupported capacity forecasts.
+- **Resources** provides Summary, By person and By project perspectives over
+  backend-produced resource products. The person plan-on-a-page uses assignment
+  dates first, labels task-forecast fallbacks and uses backend-produced
+  Green/Amber/Red conflict status. Project comparisons remain distinct from
+  actual utilisation and unsupported capacity forecasts.
+- **Dependencies** reads saved edge, task-connectivity and project products to
+  show coverage, cross-project coupling, hubs, bridges, articulation points and
+  cycles in a stable network view.
+- **Patterns** displays saved distributions, percentile context and values
+  outside configured IQR fences. Friendly measure names, dynamic definitions
+  and a glossary explain the saved calculations. The page does not calculate a
+  composite score or treat unusualness as proof of poor performance.
 - **Plan on a page** groups canonical project forecast bars by portfolio for
   the selected snapshot. Filter to one portfolio, then select a project bar or
   use the project picker to drill into its task schedule. Both levels overlay

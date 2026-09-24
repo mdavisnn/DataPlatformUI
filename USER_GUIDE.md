@@ -145,6 +145,11 @@ Review each capability separately:
 - unavailable rules;
 - overall capability status.
 
+Expand a capability to see a descriptive rule name, the affected dataset and
+field, the number of occurrences and a short plain-English explanation. The
+stable rule ID remains visible for traceability. Missing datasets and analyses
+that could not run are explained separately.
+
 Poor delivery performance is not itself a structural fitness failure.
 
 ### Findings
@@ -173,15 +178,46 @@ timeline.
 
 ### Resources
 
-Review peak concurrent assignment allocation, over-allocation conflict periods,
-cross-project participation, assignment concentration, project coverage and
-unassigned tasks. Resource and project filters narrow the saved backend
-products.
+Choose one of three perspectives:
+
+- **Summary** reviews portfolio-wide allocation pressure, shared people and
+  over-allocation conflict periods.
+- **By person** provides a plan-on-a-page timeline across projects. Assignment
+  dates take precedence; missing endpoints visibly fall back to task forecast
+  dates. Green means no calculated conflict, Amber means a conflict below the
+  configured high threshold, and Red means the overlapping allocation meets
+  or exceeds that threshold. Project identity remains in labels and tooltips.
+- **By project** compares assignment coverage, people, shared people, conflicts
+  and unassigned tasks across projects, then provides project detail.
 
 Allocation percentages describe planned assignments. They are not actual
 utilisation, timesheet effort or a time-phased forecast. The page displays the
 configured conflict threshold, capacity evidence coverage and unsupported
 measures explicitly.
+
+### Dependencies
+
+Review linked-task coverage, cross-project links, high-connectivity tasks,
+bridge links, articulation points and directed cycles. The network uses stable
+coordinates saved by DataPlatform. Node size reflects backend-calculated
+connectivity; filters only narrow the displayed evidence.
+
+Structural concentration does not establish risk. Unlinked tasks may be valid
+schedule starts, finishes or summary activities, so dependency coverage remains
+visible evidence rather than a standalone health grade.
+
+### Patterns
+
+Choose a project or resource measure to review its saved distribution and
+ranked evidence. Dropdown labels use consultant-friendly names and the selected
+measure's definition appears immediately beneath the controls. Expand
+**Measure glossary** to review every available definition. The distribution
+evidence then shows the backend-produced range, quartiles, IQR fences, coverage
+and percentile context before listing values already identified as unusual.
+
+An unusual value means that it differs from peers in the selected observation.
+It does not prove poor performance or cause. No composite anomaly or project
+health score is calculated.
 
 ### Plan on a page
 
