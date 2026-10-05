@@ -16,6 +16,11 @@ The repositories have separate responsibilities:
 The UI does not infer causes, calculate Findings or merge interpretation with
 deterministic evidence.
 
+The shared visual foundation is defined through native Streamlit theme tokens
+and presentation components. See
+[docs/visual-identity.md](docs/visual-identity.md) before adding new page-level
+styles or dashboard primitives.
+
 ## Current status
 
 The sidebar first selects a client, then an observation belonging to that
@@ -166,19 +171,23 @@ resulting observation from the sidebar.
   points and cycles. Patterns presents saved distributions, percentile context
   and values outside configured IQR fences without treating unusualness as
   proof of poor performance.
-- **History** displays existing two-observation comparisons and an interactive
-  delivery trajectory for governed trend windows. The trajectory shows
-  forecast-finish movement with reported RAG context and project drill-down,
-  while retaining the underlying governed evidence on demand.
+- **History** provides a focused trend-window or two-observation workspace.
+  It keeps observation dates and snapshot IDs visible, summarises saved
+  fitness caveats and the comparability contract, and shows recorded
+  historical Findings alongside the interactive delivery trajectory or
+  row-level change evidence. Continuity breaks remain visible and significance
+  is left to consultant interpretation.
 - **Scenario planning** creates a strict SchedulePlatform V1 configuration for
   the selected snapshot, runs bounded deterministic generation, and reads the
   saved client-scoped result package. Its collapsible configuration gives way
   to ranked options with separate resource-load, timeline, action and evidence
   views. Baselines, scenario feasibility and hypothetical outputs remain
   separate from DataPlatform Findings and history.
-- **Run the lab** provides prototype controls for inspection, assessment and
-  diagnosis. Client identity is supplied only when inspection begins;
-  downstream ownership is resolved from the run or snapshot metadata.
+- **Run the lab** presents inspection, assessment and diagnosis as three
+  explicit stages with readiness cues and identifier guidance. The controls
+  still launch the existing synchronous DataPlatform commands: client identity
+  is supplied only when inspection begins, while downstream ownership is
+  resolved from run or snapshot metadata.
 
 The global Client and Observation selectors remain in the **Data scope**
 section at the end of the sidebar, beneath the navigation.

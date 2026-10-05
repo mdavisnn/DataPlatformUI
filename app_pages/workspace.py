@@ -1,9 +1,17 @@
 """Executive snapshot for one governed canonical observation."""
 
+from __future__ import annotations
+
 import pandas as pd
 import streamlit as st
 
-from components.console import render_finding, render_hero, render_metric_row
+from components.console import (
+    MetricCard,
+    render_finding,
+    render_hero,
+    render_metric_row,
+    render_panel,
+)
 from components.project_profile import attention_map_chart
 from services.console_context import console_context
 from services.project_profile import (
@@ -17,8 +25,8 @@ _, catalogue, client_id, snapshot = console_context()
 render_hero(
     "Point-in-time diagnostic",
     "Executive snapshot",
-    "Understand the scale of the observation, where deterministic "
-    "exceptions are concentrated and which evidence limitations matter.",
+    "Understand the scale of the observation, whether its evidence supports "
+    "analysis, and where deterministic conditions require attention.",
     icon=":material/analytics:",
 )
 
@@ -35,12 +43,6 @@ diagnosis = bundle["diagnosis"]
 summary = diagnosis.get("summary") or {}
 findings = bundle["findings"].get("findings", [])
 
-st.caption(
-    f"Client {client_id} | observation "
-    f"{snapshot.get('observation_date', 'undated')} | "
-    f"snapshot {snapshot.get('snapshot_id', 'unknown')}"
-)
-
 if not summary:
     st.warning(
         "This observation predates the executive-summary contract. Its "
@@ -52,25 +54,75 @@ if not summary:
 scale = summary.get("portfolio_scale", {})
 finding_summary = summary.get("findings", {})
 render_metric_row([
-    ("Projects", scale.get("projects")),
-    ("Activities", scale.get("tasks")),
-    ("Milestones", scale.get("milestones")),
-    ("Resources", scale.get("resources")),
-    ("Findings", finding_summary.get("total")),
-    ("Projects affected", finding_summary.get("projects_affected")),
+    MetricCard(
+        "Projects",
+        scale.get("projects"),
+        icon=":material/folder:",
+    ),
+    MetricCard(
+        "Activities",
+        scale.get("tasks"),
+        icon=":material/checklist:",
+    ),
+    MetricCard(
+        "Findings",
+        finding_summary.get("total"),
+        icon=":material/description:",
+    ),
+    MetricCard(
+        "Projects affected",
+        finding_summary.get("projects_affected"),
+        icon=":material/flag:",
+    ),
 ])
 
-st.subheader("Assessment coverage")
 diagnostic_summary = summary.get("diagnostics", {})
 fitness_summary = summary.get("fitness", {})
-render_metric_row([
-    ("Diagnostics completed", diagnostic_summary.get("completed")),
-    ("Diagnostics skipped", diagnostic_summary.get("skipped")),
-    ("Diagnostics failed", diagnostic_summary.get("failed")),
-    ("Fitness blockers", fitness_summary.get("blocking_conditions")),
-    ("Fitness caveats", fitness_summary.get("caveats")),
-    ("Unavailable rules", fitness_summary.get("unavailable_rules")),
-])
+capabilities = bundle.get("fitness", {}).get("capabilities", {})
+fit_capabilities = sum(
+    assessment.get("status") == "fit"
+    for assessment in capabilities.values()
+)
+
+overview_columns = st.columns(3)
+with overview_columns[0]:
+    with render_panel(
+        "Evidence scale",
+        "Canonical evidence in this observation.",
+        icon=":material/database:",
+    ):
+        render_metric_row([
+            ("Milestones", scale.get("milestones")),
+            ("Resources", scale.get("resources")),
+        ])
+        st.caption(
+            f"{len(bundle.get('snapshot', {}).get('datasets', {}))} canonical "
+            "dataset(s) referenced by the snapshot."
+        )
+with overview_columns[1]:
+    with render_panel(
+        "Diagnostic coverage",
+        "Backend diagnostic execution recorded for this snapshot.",
+        icon=":material/analytics:",
+    ):
+        render_metric_row([
+            ("Completed", diagnostic_summary.get("completed")),
+            ("Skipped", diagnostic_summary.get("skipped")),
+            ("Failed", diagnostic_summary.get("failed")),
+        ])
+with overview_columns[2]:
+    with render_panel(
+        "Evidence fitness",
+        "Fitness limitations remain separate from delivery conditions.",
+        icon=":material/fact_check:",
+    ):
+        render_metric_row([
+            ("Capabilities fit", fit_capabilities),
+            ("Blockers", fitness_summary.get("blocking_conditions")),
+            ("Caveats", fitness_summary.get("caveats")),
+        ])
+        unavailable_rules = fitness_summary.get("unavailable_rules", 0)
+        st.caption(f"{unavailable_rules} diagnostic rule(s) unavailable.")
 
 if (
     fitness_summary.get("blocking_conditions", 0)
@@ -83,28 +135,55 @@ if (
         icon=":material/warning:",
     )
 
-st.subheader("Exception concentration")
-domain_counts = finding_summary.get("by_domain", {})
-if domain_counts:
-    concentration = pd.DataFrame([
-        {
-            "Domain": str(domain).replace("_", " ").title(),
-            "Findings": int(count),
-        }
-        for domain, count in domain_counts.items()
-    ]).sort_values("Findings", ascending=False)
-    st.bar_chart(
-        concentration,
-        x="Domain",
-        y="Findings",
-        horizontal=True,
-        height=300,
-    )
-else:
-    st.info(
-        "No deterministic findings were produced. This does not by itself "
-        "establish that the portfolio is healthy."
-    )
+finding_charts = st.columns(2)
+with finding_charts[0]:
+    with render_panel(
+        "Findings by domain",
+        "Where deterministic conditions are concentrated.",
+        icon=":material/category:",
+    ):
+        domain_counts = finding_summary.get("by_domain", {})
+        if domain_counts:
+            concentration = pd.DataFrame([
+                {
+                    "Domain": str(domain).replace("_", " ").title(),
+                    "Findings": int(count),
+                }
+                for domain, count in domain_counts.items()
+            ]).sort_values("Findings", ascending=False)
+            st.bar_chart(
+                concentration,
+                x="Domain",
+                y="Findings",
+                height=270,
+            )
+        else:
+            st.caption("No deterministic Findings were produced.")
+with finding_charts[1]:
+    with render_panel(
+        "Findings by severity",
+        "Severity assigned by the recorded diagnostic rules.",
+        icon=":material/priority_high:",
+    ):
+        severity_counts = bundle.get("findings", {}).get(
+            "counts_by_severity", {}
+        )
+        if severity_counts:
+            severity_frame = pd.DataFrame([
+                {
+                    "Severity": severity.title(),
+                    "Findings": int(severity_counts.get(severity, 0)),
+                }
+                for severity in ("high", "medium", "low")
+            ])
+            st.bar_chart(
+                severity_frame,
+                x="Severity",
+                y="Findings",
+                height=270,
+            )
+        else:
+            st.caption("No severity counts were recorded.")
 
 st.subheader("Portfolio attention map")
 st.caption(
@@ -136,8 +215,10 @@ else:
             attention["ProjectID"].astype(str) == attention_project_id
         ].iloc[0]
         selected_findings = [
-            finding for finding in findings
-            if attention_project_id in {
+            finding
+            for finding in findings
+            if attention_project_id
+            in {
                 str(value)
                 for value in finding.get("affected_entities", {}).get(
                     "projects", []
@@ -161,9 +242,7 @@ else:
                 for finding in selected_findings[:3]:
                     render_finding(finding)
             else:
-                st.caption(
-                    "No deterministic Findings affect this project."
-                )
+                st.caption("No deterministic Findings affect this project.")
 
 unplottable = attention[~attention["Plottable"]]
 if not unplottable.empty:
@@ -178,6 +257,10 @@ if not unplottable.empty:
     )
 
 st.subheader("Priority findings")
+st.caption(
+    "Highest-severity deterministic conditions in this observation. Open the "
+    "Findings view to inspect their rule and supporting evidence."
+)
 ordered = sorted(
     findings,
     key=lambda item: (
@@ -190,5 +273,29 @@ ordered = sorted(
 )
 if not ordered:
     st.caption("No Findings are available for this observation.")
-for finding in ordered[:5]:
+for finding in ordered[:3]:
     render_finding(finding)
+
+
+def _show_evidence_fitness() -> None:
+    st.session_state["workspace_review_view"] = "Evidence & fitness"
+
+
+with st.container(horizontal=True, wrap=True):
+    if st.button(
+        "Review all findings",
+        icon=":material/arrow_forward:",
+        type="primary",
+    ):
+        st.session_state["projects_findings_view"] = "All findings"
+        st.switch_page("app_pages/projects_findings.py")
+    st.button(
+        "Review evidence fitness",
+        icon=":material/fact_check:",
+        on_click=_show_evidence_fitness,
+    )
+    if st.button(
+        "Review history",
+        icon=":material/timeline:",
+    ):
+        st.switch_page("app_pages/history.py")

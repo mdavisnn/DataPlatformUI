@@ -13,8 +13,12 @@ patterns. Each destination renders only its selected view. Interpretations are
 not exposed until that workflow is implemented.
 
 The **Workspace** destination combines the executive Overview with Evidence &
-fitness. The **Projects & findings** destination combines the saved Project
-health matrix with All findings.
+fitness. Its Overview presents a compact evidence, diagnostic-coverage and
+fitness summary before the governed portfolio attention map and priority
+Findings. The **Projects & findings** destination combines the saved Project
+health matrix with All findings. All findings uses a selectable index and a
+detail view that keeps the persisted rule context, evidence facts, affected
+entities, supporting artifacts and capability fitness visibly distinct.
 
 The **Schedule & plan** destination combines Schedule conditions with Plan on a
 page. The plan view is a point-in-time presentation over one selected snapshot.
@@ -44,9 +48,18 @@ ranks, fences and unusualness flags are therefore not recalculated in the UI.
 Friendly measure names, explanations and the glossary describe those saved
 values; interactive controls only narrow or arrange the evidence.
 
+The **History** destination presents one selected governed product at a time.
+Trend windows show saved observation and transition counts, continuity policy,
+forecast-finish trajectories, historical Findings and evidence-fitness limits.
+Two-observation comparisons show the same identity and comparability context
+beside their saved change evidence. The UI does not declare observations
+comparable beyond the recorded contract, bridge absent projects, introduce a
+materiality threshold, or interpret why movement occurred.
+
 ## Release 2 — Operate
 
-The **Run the lab** page follows the existing consultant sequence:
+The **Run the lab** page presents the existing consultant sequence as three
+visible operational stages with current readiness and governed-product counts:
 
 1. place evidence in the client's configured `raw/<client_id>/` inbox;
 2. inspect and profile the evidence;
@@ -56,6 +69,10 @@ The **Run the lab** page follows the existing consultant sequence:
 Not-fit overrides remain explicit and capability-scoped. The UI launches the
 existing `lab` modules in the configured DataPlatform repository; it does not
 reimplement processing or diagnostic rules.
+
+Run ID, business observation date and snapshot ID are labelled separately
+throughout the workflow. Actions remain synchronous and user-triggered; the
+visual stage treatment does not introduce background orchestration.
 
 The UI environment includes DataPlatform's tabular runtime dependencies because
 the operation page launches those modules with the UI's Python interpreter.

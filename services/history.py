@@ -27,6 +27,85 @@ SUMMARY_COLUMNS = {
 SUMMARY_NUMERIC_COLUMNS = SUMMARY_COLUMNS.difference({"ProjectID"})
 
 
+def history_product_label(
+    product: Mapping[str, Any], identity_key: str,
+) -> str:
+    """Return a readable label for a governed history product."""
+
+    start = product.get("from_observation_date", "Undated")
+    finish = product.get("to_observation_date", "Undated")
+    identity = product.get(identity_key, "Unknown ID")
+    return f"{start} to {finish} · {identity}"
+
+
+def history_scope_frame(product: Mapping[str, Any]) -> pd.DataFrame:
+    """Expose observation and snapshot identities without conflating them."""
+
+    observation_dates = product.get("observation_dates")
+    snapshot_ids = product.get("snapshot_ids")
+    if not isinstance(observation_dates, list) or not isinstance(
+        snapshot_ids, list
+    ):
+        observation_dates = [
+            product.get("from_observation_date"),
+            product.get("to_observation_date"),
+        ]
+        snapshot_ids = [
+            product.get("from_snapshot_id"),
+            product.get("to_snapshot_id"),
+        ]
+
+    return pd.DataFrame([
+        {
+            "Sequence": index,
+            "Observation date": observation_date or "Not recorded",
+            "Snapshot ID": (
+                snapshot_ids[index - 1]
+                if index - 1 < len(snapshot_ids)
+                else "Not recorded"
+            ) or "Not recorded",
+        }
+        for index, observation_date in enumerate(observation_dates, start=1)
+    ])
+
+
+def history_fitness_counts(product: Mapping[str, Any]) -> dict[str, int]:
+    """Summarise saved fitness limitations across a history product."""
+
+    recorded = product.get("fitness", {})
+    if isinstance(recorded, list):
+        assessments = [
+            entry.get("assessment", {})
+            for entry in recorded
+            if isinstance(entry, Mapping)
+        ]
+    elif isinstance(recorded, Mapping):
+        assessments = [
+            value for value in recorded.values()
+            if isinstance(value, Mapping)
+        ]
+    else:
+        assessments = []
+
+    return {
+        "assessments": len(assessments),
+        "with_caveats": sum(
+            bool(item.get("caveats")) for item in assessments
+        ),
+        "caveats": sum(
+            len(item.get("caveats", [])) for item in assessments
+        ),
+        "blocking_conditions": sum(
+            len(item.get("blocking_conditions", []))
+            for item in assessments
+        ),
+        "unavailable_rules": sum(
+            len(item.get("unavailable_rules", []))
+            for item in assessments
+        ),
+    }
+
+
 def _required_columns(frame: pd.DataFrame, required: set[str], name: str) -> None:
     missing = sorted(required.difference(frame.columns))
     if missing:

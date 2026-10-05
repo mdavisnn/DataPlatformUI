@@ -467,6 +467,70 @@ def app_for(tmp_path, monkeypatch):
     return AppTest.from_file(str(app_path), default_timeout=10).run()
 
 
+def write_comparison(tmp_path, client_id):
+    comparison_id = "comparison-test"
+    metadata = (
+        tmp_path / "local-data" / "metadata" / client_id
+        / "comparisons" / comparison_id
+    )
+    curated = (
+        tmp_path / "local-data" / "curated" / client_id
+        / "comparisons" / comparison_id
+    )
+    _write_json(metadata / "comparison.json", {
+        "client_id": client_id,
+        "comparison_id": comparison_id,
+        "from_observation_date": "2026-08-01",
+        "to_observation_date": "2026-09-01",
+        "from_snapshot_id": "snapshot-old",
+        "to_snapshot_id": "snapshot-test",
+        "change_count": 1,
+        "finding_count": 1,
+        "execution_status": "completed_with_limitations",
+        "comparability_contract": ["client_id", "observation_date"],
+        "fitness": {
+            "from": {
+                "status": "fit_with_caveats",
+                "blocking_conditions": [],
+                "caveats": [{"rule_id": "FIT-1"}],
+                "unavailable_rules": [],
+            },
+            "to": {
+                "status": "fit",
+                "blocking_conditions": [],
+                "caveats": [],
+                "unavailable_rules": [],
+            },
+        },
+        "detailed_output": (
+            f"{client_id}/comparisons/{comparison_id}/project_changes.csv"
+        ),
+        "findings_object": (
+            f"{client_id}/comparisons/{comparison_id}/findings.json"
+        ),
+    })
+    _write_json(metadata / "findings.json", {
+        "client_id": client_id,
+        "comparison_id": comparison_id,
+        "finding_count": 1,
+        "findings": [{
+            "finding_id": "HIS-1",
+            "domain": "schedule",
+            "severity": "medium",
+            "title": "Forecast movement identified",
+            "description": "One project moved later.",
+            "rule_id": "HIS-FINISH-SLIPPAGE",
+            "evidence": {"projects_affected": 1},
+            "affected_entities": {"projects": ["P1"]},
+        }],
+    })
+    curated.mkdir(parents=True, exist_ok=True)
+    (curated / "project_changes.csv").write_text(
+        "ProjectID,FinishDateMovementDays\nP1,5\n",
+        encoding="utf-8",
+    )
+
+
 def test_workspace_renders_governed_snapshot(tmp_path, monkeypatch):
     snapshot_id = "snapshot-test"
     write_snapshot(tmp_path, "client-001", snapshot_id, "2026-09-01")
@@ -487,8 +551,48 @@ def test_workspace_renders_governed_snapshot(tmp_path, monkeypatch):
     )
     assert any(item.value == "Workspace" for item in app.title)
     assert any(
+        "Observation" in item.value and "2026-09-01" in item.value
+        for item in app.markdown
+    )
+    assert any(
+        "Snapshot" in item.value and snapshot_id in item.value
+        for item in app.markdown
+    )
+    assert any(
         "observation-wide executive viewpoint" in item.value
         for item in app.markdown
+    )
+
+
+def test_history_renders_governed_comparison_and_limitations(
+    tmp_path, monkeypatch,
+):
+    write_snapshot(tmp_path, "client-001", "snapshot-test", "2026-09-01")
+    write_comparison(tmp_path, "client-001")
+    app = app_for(tmp_path, monkeypatch)
+
+    app.switch_page("app_pages/history.py").run()
+
+    assert not app.exception
+    assert any(
+        metric.label == "Observed changes" and metric.value == "1"
+        for metric in app.metric
+    )
+    assert any(
+        metric.label == "Compared observations" and metric.value == "2"
+        for metric in app.metric
+    )
+    assert any(
+        item.value == "Recorded historical findings"
+        for item in app.subheader
+    )
+    assert any(
+        item.value == "Governed change evidence"
+        for item in app.subheader
+    )
+    assert any(
+        "do not by themselves prove unchanged portfolio scope" in item.value
+        for item in app.info
     )
     pages = {
         "app_pages/projects_findings.py": (
@@ -538,12 +642,11 @@ def test_sidebar_orders_identity_navigation_and_data_scope(
 
     assert not app.exception
     sidebar = list(app.sidebar.children.values())
-    assert [(item.type, item.value) for item in sidebar[:3]] == [
+    assert [(item.type, item.value) for item in sidebar[:2]] == [
         ("header", "Data Lab"),
-        ("caption", "PPM diagnostic workspace"),
         ("markdown", "**Review**"),
     ]
-    assert [item.value for item in sidebar[3:9]] == [
+    assert [item.value for item in sidebar[2:8]] == [
         "Workspace",
         "Projects & findings",
         "Schedule & plan",
@@ -551,12 +654,12 @@ def test_sidebar_orders_identity_navigation_and_data_scope(
         "Structure & patterns",
         "History",
     ]
-    assert (sidebar[9].type, sidebar[9].value) == ("markdown", "**Act**")
-    assert [item.value for item in sidebar[10:12]] == [
+    assert (sidebar[8].type, sidebar[8].value) == ("markdown", "**Act**")
+    assert [item.value for item in sidebar[9:11]] == [
         "Scenario planning",
         "Run the lab",
     ]
-    assert (sidebar[13].type, sidebar[13].value) == (
+    assert (sidebar[12].type, sidebar[12].value) == (
         "subheader",
         "Data scope",
     )
@@ -589,6 +692,24 @@ def test_combined_navigation_switches_workspace_and_finding_views(
     assert any(
         metric.label == "Total findings" and metric.value == "1"
         for metric in app.metric
+    )
+    assert any(
+        item.value == "Findings and evidence" for item in app.subheader
+    )
+    assert any(
+        item.value == "Test condition" for item in app.subheader
+    )
+    assert any(
+        item.value == "**Deterministic condition**"
+        for item in app.markdown
+    )
+    app.segmented_control(
+        key="finding_detail_SCH-1"
+    ).set_value("Evidence").run()
+    assert not app.exception
+    assert any(
+        item.value == "No supporting artifact references were recorded."
+        for item in app.caption
     )
 
 
@@ -829,3 +950,11 @@ def test_raw_only_client_can_open_inspection(tmp_path, monkeypatch):
         if button.label == "Inspect raw evidence"
     )
     assert not inspect_button.disabled
+    assert any(
+        metric.label == "Selected client" and metric.value == "new-client"
+        for metric in app.metric
+    )
+    assert any(
+        "Run ID records technical processing" in item.value
+        for item in app.caption
+    )

@@ -4,10 +4,75 @@ from components.history_charts import delivery_trajectory_chart
 from services.history import (
     delivery_project_facts,
     delivery_trajectory_metrics,
+    history_fitness_counts,
+    history_product_label,
+    history_scope_frame,
     prepare_delivery_trajectory,
     scope_delivery_trajectory,
     selected_trajectory_project_id,
 )
+
+
+def test_history_product_label_and_scope_keep_identity_types_distinct():
+    product = {
+        "trend_id": "trend-001",
+        "from_observation_date": "2026-01-31",
+        "to_observation_date": "2026-03-31",
+        "observation_dates": ["2026-01-31", "2026-02-28", "2026-03-31"],
+        "snapshot_ids": ["snapshot-a", "snapshot-b", "snapshot-c"],
+    }
+
+    assert history_product_label(product, "trend_id") == (
+        "2026-01-31 to 2026-03-31 · trend-001"
+    )
+    assert history_scope_frame(product).to_dict("records") == [
+        {
+            "Sequence": 1,
+            "Observation date": "2026-01-31",
+            "Snapshot ID": "snapshot-a",
+        },
+        {
+            "Sequence": 2,
+            "Observation date": "2026-02-28",
+            "Snapshot ID": "snapshot-b",
+        },
+        {
+            "Sequence": 3,
+            "Observation date": "2026-03-31",
+            "Snapshot ID": "snapshot-c",
+        },
+    ]
+
+
+def test_history_fitness_counts_saved_limitations_without_reclassification():
+    product = {
+        "fitness": [
+            {
+                "assessment": {
+                    "status": "fit_with_caveats",
+                    "caveats": [{"rule_id": "FIT-1"}],
+                    "blocking_conditions": [],
+                    "unavailable_rules": ["HIS-1"],
+                }
+            },
+            {
+                "assessment": {
+                    "status": "not_fit",
+                    "caveats": [{"rule_id": "FIT-2"}, {"rule_id": "FIT-3"}],
+                    "blocking_conditions": [{"rule_id": "FIT-4"}],
+                    "unavailable_rules": [],
+                }
+            },
+        ]
+    }
+
+    assert history_fitness_counts(product) == {
+        "assessments": 2,
+        "with_caveats": 2,
+        "caveats": 3,
+        "blocking_conditions": 1,
+        "unavailable_rules": 1,
+    }
 
 
 def observation_rows():

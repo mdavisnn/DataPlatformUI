@@ -3,7 +3,13 @@
 import pandas as pd
 import streamlit as st
 
-from components.console import render_hero, render_metric_row, status_badge
+from components.console import (
+    MetricCard,
+    render_hero,
+    render_metric_row,
+    render_panel,
+    status_badge,
+)
 from services.catalog import flatten_fitness
 from services.console_context import console_context
 from services.fitness import (
@@ -30,20 +36,54 @@ if not snapshot:
 
 bundle = catalogue.snapshot_bundle(snapshot["snapshot_id"], client_id)
 manifest = bundle["snapshot"]
+capabilities = bundle["fitness"].get("capabilities", {})
 render_metric_row([
-    ("Source files", len(manifest.get("source_files", []))),
-    ("Canonical datasets", len(manifest.get("datasets", {}))),
-    ("Observation date", manifest.get("observation_date", "—")),
+    MetricCard(
+        "Source files",
+        len(manifest.get("source_files", [])),
+        icon=":material/source:",
+    ),
+    MetricCard(
+        "Canonical datasets",
+        len(manifest.get("datasets", {})),
+        icon=":material/database:",
+    ),
+    MetricCard(
+        "Capabilities fit",
+        sum(
+            item.get("status") == "fit"
+            for item in capabilities.values()
+        ),
+        icon=":material/check_circle:",
+    ),
+    MetricCard(
+        "Capabilities limited",
+        sum(
+            item.get("status") != "fit"
+            for item in capabilities.values()
+        ),
+        icon=":material/warning:",
+    ),
 ])
 
-st.subheader("Fitness by capability")
 frame = flatten_fitness(bundle["fitness"])
 if frame.empty:
     st.info("Fitness has not been assessed for this observation.")
     st.stop()
 
-st.dataframe(frame, hide_index=True, width="stretch")
-capabilities = bundle["fitness"].get("capabilities", {})
+with render_panel(
+    "Fitness by capability",
+    "Each status answers whether this evidence can support a specific type "
+    "of analysis; it does not assess delivery performance.",
+    icon=":material/fact_check:",
+):
+    st.dataframe(frame, hide_index=True, width="stretch")
+
+st.subheader("Capability evidence")
+st.caption(
+    "Open a capability to inspect its recorded blockers, caveats, missing "
+    "datasets and unavailable diagnostic rules."
+)
 evidence_reference = bundle["fitness"].get("evidence_object")
 try:
     evidence = (
@@ -52,10 +92,11 @@ try:
     )
 except (FileNotFoundError, ValueError, MetadataReadError):
     evidence = pd.DataFrame()
+
 for capability, assessment in capabilities.items():
     label = assessment.get("status", "unknown").replace("_", " ").title()
     details = st.expander(
-        f"{capability.title()} · {label}",
+        f"{capability.title()} \N{MIDDLE DOT} {label}",
         icon=":material/rule:",
         on_change="rerun",
     )

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import streamlit as st
 
+from components.console import render_observation_context
 from components.exit_control import render_exit_control
 from config.settings import Settings, SettingsError
 from services.catalog import Catalogue
@@ -68,7 +69,6 @@ page = st.navigation(
 
 with st.sidebar:
     st.header("Data Lab", icon=":material/analytics:")
-    st.caption("PPM diagnostic workspace")
     st.markdown("**Review**")
     for review_page in review_pages:
         st.page_link(review_page, width="stretch")
@@ -154,5 +154,20 @@ with st.sidebar:
     st.caption(f"Storage: {settings.storage_root}")
     st.divider()
     render_exit_control()
+
+selected_snapshot = next(
+    (
+        item
+        for item in snapshots
+        if item.get("snapshot_id")
+        == st.session_state.get("selected_snapshot_id")
+    ),
+    None,
+)
+render_observation_context(
+    client_id=st.session_state.get("selected_client_id"),
+    observation_date=(selected_snapshot or {}).get("observation_date"),
+    snapshot_id=st.session_state.get("selected_snapshot_id"),
+)
 
 page.run()
