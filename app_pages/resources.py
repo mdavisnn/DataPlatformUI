@@ -415,9 +415,10 @@ _, catalogue, client_id, snapshot = console_context()
 
 render_hero(
     "Point-in-time diagnostic",
-    "Resource lens",
-    "Inspect allocation pressure, cross-project contention, assignment "
-    "concentration and evidence coverage without inferring actual utilisation.",
+    "Resources",
+    "A capacity-and-assignment viewpoint over allocation pressure, shared "
+    "people and cross-project contention. Use it to identify where planned "
+    "work may compete for resources without inferring actual utilisation.",
     icon=":material/groups:",
 )
 

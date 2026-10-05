@@ -17,9 +17,64 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+review_pages = [
+    st.Page(
+        "app_pages/workspace_review.py",
+        title="Workspace",
+        icon=":material/home:",
+    ),
+    st.Page(
+        "app_pages/projects_findings.py",
+        title="Projects & findings",
+        icon=":material/grid_view:",
+    ),
+    st.Page(
+        "app_pages/schedule_plan.py",
+        title="Schedule & plan",
+        icon=":material/view_timeline:",
+    ),
+    st.Page(
+        "app_pages/resources.py",
+        title="Resources",
+        icon=":material/groups:",
+    ),
+    st.Page(
+        "app_pages/structure_patterns.py",
+        title="Structure & patterns",
+        icon=":material/account_tree:",
+    ),
+    st.Page(
+        "app_pages/history.py",
+        title="History",
+        icon=":material/timeline:",
+    ),
+]
+act_pages = [
+    st.Page(
+        "app_pages/scenario_planning.py",
+        title="Scenario planning",
+        icon=":material/event_repeat:",
+    ),
+    st.Page(
+        "app_pages/run_lab.py",
+        title="Run the lab",
+        icon=":material/play_circle:",
+    ),
+]
+page = st.navigation(
+    {"Review": review_pages, "Act": act_pages},
+    position="hidden",
+)
+
 with st.sidebar:
     st.header("Data Lab", icon=":material/analytics:")
     st.caption("PPM diagnostic workspace")
+    st.markdown("**Review**")
+    for review_page in review_pages:
+        st.page_link(review_page, width="stretch")
+    st.markdown("**Act**")
+    for act_page in act_pages:
+        st.page_link(act_page, width="stretch")
 
 try:
     settings = Settings.from_environment()
@@ -40,6 +95,8 @@ st.session_state.setdefault("selected_client_id", None)
 st.session_state.setdefault("selected_snapshot_id", None)
 
 with st.sidebar:
+    st.divider()
+    st.subheader("Data scope", icon=":material/database:")
     snapshots = []
     if clients:
         current_client = st.session_state.get("selected_client_id")
@@ -98,72 +155,4 @@ with st.sidebar:
     st.divider()
     render_exit_control()
 
-page = st.navigation(
-    {
-        "Review": [
-            st.Page(
-                "app_pages/workspace.py",
-                title="Workspace",
-                icon=":material/home:",
-            ),
-            st.Page(
-                "app_pages/evidence.py",
-                title="Evidence & fitness",
-                icon=":material/fact_check:",
-            ),
-            st.Page(
-                "app_pages/findings.py",
-                title="Findings",
-                icon=":material/search_insights:",
-            ),
-            st.Page(
-                "app_pages/project_health.py",
-                title="Project health",
-                icon=":material/grid_view:",
-            ),
-            st.Page(
-                "app_pages/schedule.py",
-                title="Schedule",
-                icon=":material/calendar_month:",
-            ),
-            st.Page(
-                "app_pages/resources.py",
-                title="Resources",
-                icon=":material/groups:",
-            ),
-            st.Page(
-                "app_pages/dependencies.py",
-                title="Dependencies",
-                icon=":material/account_tree:",
-            ),
-            st.Page(
-                "app_pages/patterns.py",
-                title="Patterns",
-                icon=":material/scatter_plot:",
-            ),
-            st.Page(
-                "app_pages/plan.py",
-                title="Plan on a page",
-                icon=":material/view_timeline:",
-            ),
-            st.Page(
-                "app_pages/history.py",
-                title="History",
-                icon=":material/timeline:",
-            ),
-            st.Page(
-                "app_pages/interpretations.py",
-                title="Interpretations",
-                icon=":material/psychology:",
-            ),
-        ],
-        "Operate": [
-            st.Page(
-                "app_pages/run_lab.py",
-                title="Run the lab",
-                icon=":material/play_circle:",
-            ),
-        ],
-    }
-)
 page.run()

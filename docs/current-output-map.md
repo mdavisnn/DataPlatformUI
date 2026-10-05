@@ -9,20 +9,20 @@ beneath the storage root shared with DataPlatform.
 | Run state and timestamps | `metadata/<client_id>/runs/<run_id>/run.json` | Run the lab |
 | Run sources | `metadata/<client_id>/runs/<run_id>/sources.json` | Operational context |
 | Canonical observation identity | `metadata/<client_id>/snapshots/<snapshot_id>/snapshot.json` | Shared observation context |
-| Capability fitness and field-level condition evidence | `metadata/<client_id>/snapshots/<snapshot_id>/fitness.json` and its `evidence_object` | Evidence & fitness |
-| Diagnostic execution and executive summary | `metadata/<client_id>/snapshots/<snapshot_id>/diagnosis.json` | Executive snapshot |
-| Deterministic Findings | `metadata/<client_id>/snapshots/<snapshot_id>/findings.json` | Workspace, Findings and drill-down |
-| Project comparison matrix | `curated/<client_id>/snapshots/<snapshot_id>/overview/project_health.csv` | Project health |
-| Cross-domain project measures, percentiles and IQR context | `curated/<client_id>/snapshots/<snapshot_id>/overview/project_diagnostic_profile.csv` | Workspace attention map and Project health fingerprint |
-| Schedule project and activity products | Named `schedule` products in `diagnosis.json.diagnostics[].products` | Schedule |
+| Capability fitness and field-level condition evidence | `metadata/<client_id>/snapshots/<snapshot_id>/fitness.json` and its `evidence_object` | Workspace / Evidence & fitness |
+| Diagnostic execution and executive summary | `metadata/<client_id>/snapshots/<snapshot_id>/diagnosis.json` | Workspace / Overview |
+| Deterministic Findings | `metadata/<client_id>/snapshots/<snapshot_id>/findings.json` | Workspace, Projects & findings / All findings, and drill-down |
+| Project comparison matrix | `curated/<client_id>/snapshots/<snapshot_id>/overview/project_health.csv` | Projects & findings / Project health |
+| Cross-domain project measures, percentiles and IQR context | `curated/<client_id>/snapshots/<snapshot_id>/overview/project_diagnostic_profile.csv` | Workspace attention map and Projects & findings / Project health fingerprint |
+| Schedule project and activity products | Named `schedule` products in `diagnosis.json.diagnostics[].products` | Schedule & plan / Schedule conditions |
 | Resource, project, assignment-timeline, conflict and unassigned-work products | Named `resource` products in `diagnosis.json.diagnostics[].products` | Resources |
-| Dependency edges, task connectivity and project coverage | Named `dependency` products in `diagnosis.json.diagnostics[].products` | Dependencies |
-| Distribution observations, summaries and unusualness evidence | Named `exploratory` products in `diagnosis.json.diagnostics[].products` | Patterns |
-| Canonical datasets | Objects referenced by `snapshot.json.datasets` | Plan on a page |
+| Dependency edges, task connectivity and project coverage | Named `dependency` products in `diagnosis.json.diagnostics[].products` | Structure & patterns / Dependencies |
+| Distribution observations, summaries and unusualness evidence | Named `exploratory` products in `diagnosis.json.diagnostics[].products` | Structure & patterns / Patterns |
+| Canonical datasets | Objects referenced by `snapshot.json.datasets` | Schedule & plan / Plan on a page |
 | Detailed diagnostic evidence | Objects referenced by Findings and diagnosis outcomes | Finding evidence |
 | Historical comparison | `metadata/<client_id>/comparisons/<comparison_id>/comparison.json` | History |
 | Historical trend | `metadata/<client_id>/trends/<trend_id>/trend.json` | History |
-| Human interpretation | `metadata/<client_id>/interpretations/<interpretation_id>/session.json` | Interpretations |
+| Human interpretation | `metadata/<client_id>/interpretations/<interpretation_id>/session.json` | Not currently exposed in navigation |
 
 The UI tolerates a missing optional analytical product and labels the
 corresponding view as unavailable. It does not reinterpret missing output as a

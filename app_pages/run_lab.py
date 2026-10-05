@@ -13,8 +13,10 @@ settings, catalogue, client_id, _ = console_context()
 
 render_hero(
     "Guided operation",
-    "Run the lab without the command line",
-    "Each action calls the existing deterministic workflow. The console does not replace or reinterpret platform controls.",
+    "Run the lab",
+    "An operational viewpoint over the evidence lifecycle from inspection to "
+    "assessment and diagnosis. Use it to run the existing deterministic "
+    "workflow with explicit human control and reproducible identifiers.",
     icon=":material/play_circle:",
 )
 st.warning(

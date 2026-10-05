@@ -61,3 +61,23 @@ class Settings:
     @property
     def curated_path(self) -> Path:
         return self.data_path("curated")
+
+    @property
+    def schedule_platform_path(self) -> Path:
+        configured = os.getenv("SCHEDULE_PLATFORM_PATH")
+        path = (
+            Path(configured).expanduser()
+            if configured
+            else self.platform_path.parent / "SchedulePlatform"
+        )
+        return path.resolve()
+
+    @property
+    def schedule_output_root(self) -> Path:
+        configured = os.getenv("SCHEDULE_PLATFORM_OUTPUT_ROOT")
+        if configured:
+            path = Path(configured).expanduser()
+            if not path.is_absolute():
+                path = self.schedule_platform_path / path
+            return path.resolve()
+        return (self.schedule_platform_path / "output").resolve()

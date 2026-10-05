@@ -485,21 +485,111 @@ def test_workspace_renders_governed_snapshot(tmp_path, monkeypatch):
     assert any(
         item.value == "Portfolio attention map" for item in app.subheader
     )
-    for page in (
-        "app_pages/evidence.py",
-        "app_pages/findings.py",
-        "app_pages/project_health.py",
-        "app_pages/schedule.py",
-        "app_pages/resources.py",
-        "app_pages/dependencies.py",
-        "app_pages/patterns.py",
-        "app_pages/plan.py",
-        "app_pages/history.py",
-        "app_pages/interpretations.py",
-        "app_pages/run_lab.py",
-    ):
+    assert any(item.value == "Workspace" for item in app.title)
+    assert any(
+        "observation-wide executive viewpoint" in item.value
+        for item in app.markdown
+    )
+    pages = {
+        "app_pages/projects_findings.py": (
+            "Projects & findings",
+            "project-comparison viewpoint",
+        ),
+        "app_pages/schedule_plan.py": (
+            "Schedule & plan",
+            "time-and-sequencing viewpoint",
+        ),
+        "app_pages/resources.py": (
+            "Resources",
+            "capacity-and-assignment viewpoint",
+        ),
+        "app_pages/structure_patterns.py": (
+            "Structure & patterns",
+            "structural and peer-pattern viewpoint",
+        ),
+        "app_pages/history.py": (
+            "History",
+            "change-over-time viewpoint",
+        ),
+        "app_pages/scenario_planning.py": (
+            "Scenario planning",
+            "controlled what-if viewpoint",
+        ),
+        "app_pages/run_lab.py": (
+            "Run the lab",
+            "operational viewpoint",
+        ),
+    }
+    for page, (title, description) in pages.items():
         app.switch_page(page).run()
         assert not app.exception, page
+        assert any(item.value == title for item in app.title), page
+        assert any(
+            description in item.value for item in app.markdown
+        ), page
+
+
+def test_sidebar_orders_identity_navigation_and_data_scope(
+    tmp_path, monkeypatch,
+):
+    write_snapshot(tmp_path, "client-001", "snapshot-test", "2026-09-01")
+
+    app = app_for(tmp_path, monkeypatch)
+
+    assert not app.exception
+    sidebar = list(app.sidebar.children.values())
+    assert [(item.type, item.value) for item in sidebar[:3]] == [
+        ("header", "Data Lab"),
+        ("caption", "PPM diagnostic workspace"),
+        ("markdown", "**Review**"),
+    ]
+    assert [item.value for item in sidebar[3:9]] == [
+        "Workspace",
+        "Projects & findings",
+        "Schedule & plan",
+        "Resources",
+        "Structure & patterns",
+        "History",
+    ]
+    assert (sidebar[9].type, sidebar[9].value) == ("markdown", "**Act**")
+    assert [item.value for item in sidebar[10:12]] == [
+        "Scenario planning",
+        "Run the lab",
+    ]
+    assert (sidebar[13].type, sidebar[13].value) == (
+        "subheader",
+        "Data scope",
+    )
+
+
+def test_combined_navigation_switches_workspace_and_finding_views(
+    tmp_path, monkeypatch,
+):
+    snapshot_id = "snapshot-combined-views"
+    write_snapshot(tmp_path, "client-001", snapshot_id, "2026-09-01")
+    app = app_for(tmp_path, monkeypatch)
+
+    app.segmented_control(
+        key="workspace_review_view"
+    ).set_value("Evidence & fitness").run()
+    assert not app.exception
+    assert any(item.value == "Workspace" for item in app.title)
+    assert any(
+        item.value == "Fitness by capability" for item in app.subheader
+    )
+
+    app.switch_page("app_pages/projects_findings.py").run()
+    app.segmented_control(
+        key="projects_findings_view"
+    ).set_value("All findings").run()
+    assert not app.exception
+    assert any(
+        item.value == "Projects & findings" for item in app.title
+    )
+    assert any(
+        metric.label == "Total findings" and metric.value == "1"
+        for metric in app.metric
+    )
 
 
 def test_project_health_uses_governed_matrix(tmp_path, monkeypatch):
@@ -507,7 +597,7 @@ def test_project_health_uses_governed_matrix(tmp_path, monkeypatch):
     write_snapshot(tmp_path, "client-001", snapshot_id, "2026-09-01")
     app = app_for(tmp_path, monkeypatch)
 
-    app.switch_page("app_pages/project_health.py").run()
+    app.switch_page("app_pages/projects_findings.py").run()
 
     assert not app.exception
     assert any(
@@ -531,7 +621,10 @@ def test_plan_filters_portfolio_and_drills_into_project(
     snapshot_id = "snapshot-plan"
     write_snapshot(tmp_path, "client-001", snapshot_id, "2026-09-01")
     app = app_for(tmp_path, monkeypatch)
-    app.switch_page("app_pages/plan.py").run()
+    app.switch_page("app_pages/schedule_plan.py").run()
+    app.segmented_control(
+        key="schedule_plan_view"
+    ).set_value("Plan on a page").run()
 
     portfolio = app.selectbox(key=f"plan_portfolio_{snapshot_id}")
     portfolio.set_value("PORT-A").run()
@@ -555,7 +648,7 @@ def test_schedule_lens_reads_backend_products(tmp_path, monkeypatch):
     write_snapshot(tmp_path, "client-001", snapshot_id, "2026-09-01")
     app = app_for(tmp_path, monkeypatch)
 
-    app.switch_page("app_pages/schedule.py").run()
+    app.switch_page("app_pages/schedule_plan.py").run()
 
     assert not app.exception
     assert any(
@@ -628,7 +721,7 @@ def test_dependency_lens_reads_backend_graph_products(
     write_snapshot(tmp_path, "client-001", snapshot_id, "2026-09-01")
     app = app_for(tmp_path, monkeypatch)
 
-    app.switch_page("app_pages/dependencies.py").run()
+    app.switch_page("app_pages/structure_patterns.py").run()
 
     assert not app.exception
     assert any(
@@ -655,7 +748,10 @@ def test_patterns_lens_reads_saved_distributions(
     write_snapshot(tmp_path, "client-001", snapshot_id, "2026-09-01")
     app = app_for(tmp_path, monkeypatch)
 
-    app.switch_page("app_pages/patterns.py").run()
+    app.switch_page("app_pages/structure_patterns.py").run()
+    app.segmented_control(
+        key="structure_patterns_view"
+    ).set_value("Patterns").run()
 
     assert not app.exception
     assert any(

@@ -19,8 +19,10 @@ _, catalogue, client_id, _ = console_context()
 
 render_hero(
     "Compare & trend",
-    "What changed—and what keeps happening?",
-    "Historical products preserve the difference between observed movement and the consultant's interpretation of its significance.",
+    "History",
+    "A change-over-time viewpoint over comparable observations and recurring "
+    "delivery behaviour. Use it to distinguish observed movement from a "
+    "consultant's interpretation of its significance.",
     icon=":material/timeline:",
 )
 

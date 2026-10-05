@@ -2,12 +2,33 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from typing import Any
 
 import streamlit as st
 
 
+_SUPPRESS_PAGE_HERO: ContextVar[bool] = ContextVar(
+    "_SUPPRESS_PAGE_HERO",
+    default=False,
+)
+
+
+@contextmanager
+def suppress_page_hero() -> Iterator[None]:
+    """Suppress a nested page hero only for the current render context."""
+    token = _SUPPRESS_PAGE_HERO.set(True)
+    try:
+        yield
+    finally:
+        _SUPPRESS_PAGE_HERO.reset(token)
+
+
 def render_hero(eyebrow: str, title: str, description: str, *, icon: str) -> None:
+    if _SUPPRESS_PAGE_HERO.get():
+        return
     st.caption(eyebrow.upper())
     st.title(title, icon=icon)
     st.write(description)

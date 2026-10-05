@@ -28,6 +28,14 @@ same value:
 DATA_PLATFORM_STORAGE_ROOT=D:\path\to\diagnostic-data
 ```
 
+To enable the optional **Scenario planning** page, configure the separate
+SchedulePlatform checkout. Results are written outside DataPlatform storage:
+
+```dotenv
+SCHEDULE_PLATFORM_PATH=D:\Data Lab\SchedulePlatform
+# SCHEDULE_PLATFORM_OUTPUT_ROOT=D:\path\to\schedule-analysis-output
+```
+
 The UI reads the `raw`, `processed`, `curated` and `metadata` areas. It does not
 connect to remote storage.
 
@@ -127,10 +135,16 @@ then shows only snapshots belonging to that `client_id`; each option contains
 the business observation date and `snapshot_id`.
 
 Changing client clears the previous observation selection and selects that
-client's most recent available observation. Runs, comparisons, trends and
-interpretations shown elsewhere in the console are filtered to the same client.
+client's most recent available observation. Runs, comparisons and trends shown
+elsewhere in the console are filtered to the same client.
+
+The navigation appears first in the sidebar. The global **Data scope** section
+containing Client and Observation remains at the end. Combined destinations use
+a two-option control at the top of the page to switch between related views.
 
 ### Workspace
+
+#### Overview
 
 The workspace presents the backend-produced executive summary: portfolio scale,
 diagnostic coverage, evidence limitations, exception concentration and priority
@@ -142,7 +156,7 @@ connectivity and colour represents the highest Finding severity. Select a
 project to inspect its headline measures and Findings. Dashed lines show the
 saved portfolio medians; they are comparison context rather than thresholds.
 
-### Evidence & fitness
+#### Evidence & fitness
 
 Review each capability separately:
 
@@ -158,12 +172,11 @@ that could not run are explained separately.
 
 Poor delivery performance is not itself a structural fitness failure.
 
-### Findings
+### Projects & findings
 
-Filter deterministic Findings by domain and severity. Expand a Finding to see
-its rule, evidence values, affected entity IDs and supporting governed CSVs.
+Choose between Project health and All findings.
 
-### Project health
+#### Project health
 
 Compare projects across separate diagnostic lenses. `No finding` means that a
 capability completed without producing a Finding for that project.
@@ -175,7 +188,16 @@ percentile within the current observation. The shaded band is the middle half
 of projects, the tick is the median and a diamond marks a value outside the IQR
 fence. A high percentile means different from peers, not necessarily poor.
 
-### Schedule
+#### All findings
+
+Filter deterministic Findings by domain and severity. Expand a Finding to see
+its rule, evidence values, affected entity IDs and supporting governed CSVs.
+
+### Schedule & plan
+
+Choose between Schedule conditions and Plan on a page.
+
+#### Schedule conditions
 
 Review backend-calculated overdue activities and milestones, project condition
 concentration, activity duration distribution, and schedule evidence coverage.
@@ -186,6 +208,23 @@ shown as unavailable when the observation cannot support them.
 The Schedule page does not infer critical paths or recalculate the schedule
 rules. Use **Plan on a page** when you need the detailed dated project and task
 timeline.
+
+#### Plan on a page
+
+Start with the project summary, where forecast bars are grouped by portfolio
+within the currently selected observation. Use **Portfolio** to narrow the
+scope, then select a project bar (or use **Drill into project**) to open its
+canonical task timeline. Coloured overlays show dated supporting evidence for
+deterministic Findings; the blue dashed line is the observation date. The
+domain and severity filters apply to both timeline levels.
+
+In the task timeline, select an overlay or use **Inspect finding** to open the
+underlying Finding and its dated evidence rows. Projects or tasks with missing
+or invalid forecast dates are disclosed instead of plotted. Projects without a
+portfolio identifier are grouped under **Unassigned**.
+
+Findings without defensible evidence dates are listed separately rather than
+being assigned an inferred position on either plan.
 
 ### Resources
 
@@ -206,7 +245,11 @@ utilisation, timesheet effort or a time-phased forecast. The page displays the
 configured conflict threshold, capacity evidence coverage and unsupported
 measures explicitly.
 
-### Dependencies
+### Structure & patterns
+
+Choose between Dependencies and Patterns.
+
+#### Dependencies
 
 Review linked-task coverage, cross-project links, high-connectivity tasks,
 bridge links, articulation points and directed cycles. The network uses stable
@@ -217,7 +260,7 @@ Structural concentration does not establish risk. Unlinked tasks may be valid
 schedule starts, finishes or summary activities, so dependency coverage remains
 visible evidence rather than a standalone health grade.
 
-### Patterns
+#### Patterns
 
 Choose a project or resource measure to review its saved distribution and
 ranked evidence. Dropdown labels use consultant-friendly names and the selected
@@ -230,32 +273,31 @@ An unusual value means that it differs from peers in the selected observation.
 It does not prove poor performance or cause. No composite anomaly or project
 health score is calculated.
 
-### Plan on a page
-
-Start with the project summary, where forecast bars are grouped by portfolio
-within the currently selected observation. Use **Portfolio** to narrow the
-scope, then select a project bar (or use **Drill into project**) to open its
-canonical task timeline. Coloured overlays show dated supporting evidence for
-deterministic Findings; the blue dashed line is the observation date. The
-domain and severity filters apply to both timeline levels.
-
-In the task timeline, select an overlay or use **Inspect finding** to open the
-underlying Finding and its dated evidence rows. Projects or tasks with missing
-or invalid forecast dates are disclosed instead of plotted. Projects without a
-portfolio identifier are grouped under **Unassigned**.
-
-Findings without defensible evidence dates are listed separately rather than
-being assigned an inferred position on either plan.
-
 ### History
 
 The page displays comparison and trend products that DataPlatform has already
 created. History is optional and is not required for point-in-time diagnosis.
 
-### Interpretations
+### Scenario planning
 
-The page lists recorded interpretation sessions. Interpretations remain
-separate from deterministic Findings and must cite the Findings they discuss.
+The page uses the selected canonical observation as an immutable baseline.
+Set the ranking objective, search bounds, permitted actions, every project's
+priority, protection and movement limit, plus any explicit substitutions or
+targets. Choose **Generate deterministic scenarios** to run SchedulePlatform.
+
+Each run is saved beneath
+output_root/client_id/runs/run_id with its exact configuration, run record and
+generation result. The page can reopen any saved run belonging to the selected
+client and snapshot. It shows baseline conditions separately from scenario
+feasibility, then compares ranked feasible options. Select an option to inspect
+its resource load against recorded capacity, changed assignments, project and
+task date movement, configured targets and provenance. Planning configuration
+collapses after a successful run and can be reopened from its summary header.
+
+The controls currently keep risk disabled. Monte Carlo assumptions and results
+will use the same separate SchedulePlatform boundary when that UI is added.
+Generated schedules are hypothetical options: they are not canonical
+observations, Findings, history, or instructions to update a source system.
 
 ## 6. Preserve and compare observations
 
