@@ -156,10 +156,11 @@ resulting observation from the sidebar.
   schedule, resource, reporting and dependency dimensions without creating an
   overall score. All findings exposes deterministic conditions, affected
   entities, rules and supporting governed evidence.
-- **Schedule & plan** combines Schedule conditions with Plan on a page.
-  Schedule conditions shows overdue work, milestone position, duration
-  distribution and evidence coverage from backend-produced products. Plan on a
-  page groups canonical project forecast bars by portfolio, supports project
+- **Schedule & plan** combines the DCMA 14-Point Schedule assessment with Plan
+  on a page. Schedule assessment presents the saved project-by-metric matrix,
+  tripwire results, unavailable metrics, supporting conditions, durations and
+  evidence coverage without calculating a composite score. Plan on a page
+  groups canonical project forecast bars by portfolio, supports project
   drill-down and overlays only Findings with defensible dates.
 - **Resources** provides Summary, By person and By project perspectives over
   backend-produced resource products. The person plan-on-a-page uses assignment

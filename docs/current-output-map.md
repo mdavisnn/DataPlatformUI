@@ -14,7 +14,7 @@ beneath the storage root shared with DataPlatform.
 | Deterministic Findings | `metadata/<client_id>/snapshots/<snapshot_id>/findings.json` | Workspace, Projects & findings / All findings, and drill-down |
 | Project comparison matrix | `curated/<client_id>/snapshots/<snapshot_id>/overview/project_health.csv` | Projects & findings / Project health |
 | Cross-domain project measures, percentiles and IQR context | `curated/<client_id>/snapshots/<snapshot_id>/overview/project_diagnostic_profile.csv` | Workspace attention map and Projects & findings / Project health fingerprint |
-| Schedule project and activity products | Named `schedule` products in `diagnosis.json.diagnostics[].products` | Schedule & plan / Schedule conditions |
+| DCMA project summary, per-metric assessment, condition and activity products | Named `schedule` products in `diagnosis.json.diagnostics[].products` | Schedule & plan / Schedule assessment |
 | Resource, project, assignment-timeline, conflict and unassigned-work products | Named `resource` products in `diagnosis.json.diagnostics[].products` | Resources |
 | Dependency edges, task connectivity and project coverage | Named `dependency` products in `diagnosis.json.diagnostics[].products` | Structure & patterns / Dependencies |
 | Distribution observations, summaries and unusualness evidence | Named `exploratory` products in `diagnosis.json.diagnostics[].products` | Structure & patterns / Patterns |

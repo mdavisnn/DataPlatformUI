@@ -54,13 +54,14 @@ def write_snapshot(tmp_path, client_id, snapshot_id, observation_date):
         },
     })
     finding = {
-        "finding_id": "SCH-1",
+        "finding_id": "DCMA-01-LOGIC-1",
+        "diagnostic_id": "dcma_14_point",
         "domain": "schedule",
         "severity": "high",
-        "title": "Test condition",
-        "description": "A deterministic test finding.",
-        "rule_id": "SCH-TEST",
-        "evidence": {"count": 1},
+        "title": "Missing schedule logic exceeds the DCMA tripwire",
+        "description": "DCMA metric 1 was outside its configured tripwire.",
+        "rule_id": "DCMA-01-LOGIC",
+        "evidence": {"projects_outside_threshold": 1},
         "affected_entities": {"projects": ["P1"]},
         "supporting_artifacts": [],
     }
@@ -84,7 +85,11 @@ def write_snapshot(tmp_path, client_id, snapshot_id, observation_date):
     schedule_products = {
         "project_summary": (
             f"curated/{client_id}/snapshots/{snapshot_id}/schedule/"
-            "project_schedule_health.csv"
+            "dcma_14_point_project_summary.csv"
+        ),
+        "assessment": (
+            f"curated/{client_id}/snapshots/{snapshot_id}/schedule/"
+            "dcma_14_point_assessment.csv"
         ),
         "activity_profile": (
             f"curated/{client_id}/snapshots/{snapshot_id}/schedule/"
@@ -92,7 +97,7 @@ def write_snapshot(tmp_path, client_id, snapshot_id, observation_date):
         ),
         "conditions": (
             f"curated/{client_id}/snapshots/{snapshot_id}/schedule/"
-            "schedule_conditions.csv"
+            "dcma_14_point_conditions.csv"
         ),
     }
     resource_products = {
@@ -155,21 +160,36 @@ def write_snapshot(tmp_path, client_id, snapshot_id, observation_date):
         "diagnostics": [
             {
                 "capability": "schedule",
-                "diagnostic_id": "schedule_health",
+                "diagnostic_id": "dcma_14_point",
                 "status": "success",
                 "products": schedule_products,
                 "metrics": {
+                    "projects_analysed": 2,
                     "tasks_analysed": 2,
                     "milestone_count": 1,
-                    "overdue_tasks": 1,
-                    "overdue_milestones": 1,
-                    "projects_with_conditions": 1,
-                    "date_coverage_pct": 100.0,
-                    "hierarchy_coverage_pct": 50.0,
-                    "float_coverage_pct": 50.0,
-                    "criticality_coverage_pct": 50.0,
+                    "project_metric_results": 28,
+                    "metrics_assessed": 22,
+                    "metrics_outside_threshold": 1,
+                    "metrics_not_assessable": 6,
+                    "projects_outside_threshold": 1,
+                    "working_day_basis": "monday_friday_no_holidays",
                     "unavailable_measures": [
-                        "critical_path_network_analysis"
+                        {
+                            "rule_id": "DCMA-12-CRITICAL-PATH-TEST",
+                            "metric_number": 12,
+                            "metric_name": "Critical Path Test",
+                            "reasons": [
+                                "Calendar-aware network recalculation is unavailable"
+                            ],
+                        },
+                        {
+                            "rule_id": "DCMA-13-CPLI",
+                            "metric_number": 13,
+                            "metric_name": "Critical Path Length Index (CPLI)",
+                            "reasons": [
+                                "Critical path length cannot be established"
+                            ],
+                        },
                     ],
                 },
             },
@@ -284,7 +304,7 @@ def write_snapshot(tmp_path, client_id, snapshot_id, observation_date):
         "ResourceStatus,ReportingStatus,DependencyStatus,DataFitness,"
         "FindingCount,HighFindings,MediumFindings,LowFindings,FindingIDs\n"
         "P1,Alpha,PORT-A,,Active,Amber,1,No finding,Significant,"
-        "No finding,No finding,Not assessed,Fit,1,1,0,0,SCH-1\n"
+        "No finding,No finding,Not assessed,Fit,1,1,0,0,DCMA-01-LOGIC-1\n"
         "P2,Beta,PORT-B,,Active,Green,1,No finding,No finding,"
         "No finding,No finding,Not assessed,Fit,0,0,0,0,\n",
         encoding="utf-8",
@@ -299,7 +319,7 @@ def write_snapshot(tmp_path, client_id, snapshot_id, observation_date):
         "false,Available,,canonical_observation,processed/tasks.csv\n"
         "P1,Alpha,Schedule,schedule_condition_task_pct,Tasks with schedule "
         "conditions,50,%,100,2,12.5,25,37.5,-25,75,false,Available,,"
-        "schedule_health,curated/schedule.csv\n"
+        "dcma_14_point,curated/schedule.csv\n"
         "P1,Alpha,Resources,conflict_resource_pct,Resources with conflicts,"
         "100,%,100,2,25,50,75,-50,150,false,Available,,resource_conflicts,"
         "curated/resource.csv\n"
@@ -313,7 +333,7 @@ def write_snapshot(tmp_path, client_id, snapshot_id, observation_date):
         "Available,,canonical_observation,processed/tasks.csv\n"
         "P2,Beta,Schedule,schedule_condition_task_pct,Tasks with schedule "
         "conditions,0,%,50,2,12.5,25,37.5,-25,75,false,Available,,"
-        "schedule_health,curated/schedule.csv\n"
+        "dcma_14_point,curated/schedule.csv\n"
         "P2,Beta,Resources,conflict_resource_pct,Resources with conflicts,"
         "0,%,50,2,25,50,75,-50,150,false,Available,,resource_conflicts,"
         "curated/resource.csv\n"
@@ -327,32 +347,73 @@ def write_snapshot(tmp_path, client_id, snapshot_id, observation_date):
     )
     schedule = curated / "schedule"
     schedule.mkdir(parents=True, exist_ok=True)
-    (schedule / "project_schedule_health.csv").write_text(
-        "ProjectID,ProjectName,TaskCount,OverdueTasks,VeryLongTasks,"
-        "TasksStartingBeforeProject,TasksFinishingAfterProject,IssueCount,"
-        "ScheduleHealth,MilestoneCount,OverdueMilestones,DateCoveragePct,"
-        "HierarchyCoveragePct,FloatCoveragePct,"
-        "CriticalEvidenceCoveragePct,BaselineFinishCoveragePct,"
-        "MedianTaskDurationDays,MaxTaskDurationDays\n"
-        "P1,Alpha,1,1,0,0,0,1,Warning,1,1,100,100,100,100,100,30,30\n"
-        "P2,Beta,1,0,0,0,0,0,Healthy,0,0,100,0,0,0,0,73,73\n",
+    (schedule / "dcma_14_point_project_summary.csv").write_text(
+        "ProjectID,ProjectName,TaskCount,EligibleActivityCount,"
+        "AssessableMetrics,OutOfThresholdMetrics,NotAssessableMetrics,"
+        "AssessmentStatus,DCMA01Value,DCMA01Status,MilestoneCount,"
+        "CompletedTasks,TasksWithBaseline,BaselineCoveragePct,TasksWithFloat,"
+        "FloatCoveragePct,CriticalTasks,TasksWithCriticalEvidence,"
+        "CriticalEvidenceCoveragePct,MedianTaskDurationDays,"
+        "MaxTaskDurationDays,MedianBaselineDurationWorkingDays,"
+        "MaxBaselineDurationWorkingDays\n"
+        "P1,Alpha,1,1,11,1,3,Outside threshold,100,outside_threshold,"
+        "1,0,1,100,1,100,1,1,100,30,30,22,22\n"
+        "P2,Beta,1,1,11,0,3,Within assessed thresholds,0,"
+        "within_threshold,0,0,1,100,0,0,0,1,100,73,73,52,52\n",
+        encoding="utf-8",
+    )
+    (schedule / "dcma_14_point_assessment.csv").write_text(
+        "ProjectID,ProjectName,MetricNumber,RuleID,MetricName,Status,"
+        "Numerator,Denominator,Value,Unit,Comparison,Threshold,"
+        "EvidenceCoveragePct,StatusDate,StatusDateSource,Population,Reason,"
+        "WorkingDayBasis\n"
+        "P1,Alpha,1,DCMA-01-LOGIC,Logic,outside_threshold,1,1,100,%,"
+        "maximum,5,100,2026-09-01,project_data_date,incomplete baselined "
+        "activities,,monday_friday_no_holidays\n"
+        "P1,Alpha,12,DCMA-12-CRITICAL-PATH-TEST,Critical Path Test,"
+        "not_assessable,,,,result,pass,,,2026-09-01,project_data_date,"
+        "project critical path,Calendar-aware network recalculation is "
+        "unavailable,monday_friday_no_holidays\n"
+        "P1,Alpha,13,DCMA-13-CPLI,Critical Path Length Index (CPLI),"
+        "not_assessable,,,,index,minimum,0.95,,2026-09-01,"
+        "project_data_date,project critical path,Critical path length cannot "
+        "be established,monday_friday_no_holidays\n"
+        "P2,Beta,1,DCMA-01-LOGIC,Logic,within_threshold,0,1,0,%,maximum,"
+        "5,100,2026-09-01,snapshot_observation_date,incomplete baselined "
+        "activities,,monday_friday_no_holidays\n"
+        "P2,Beta,12,DCMA-12-CRITICAL-PATH-TEST,Critical Path Test,"
+        "not_assessable,,,,result,pass,,,2026-09-01,"
+        "snapshot_observation_date,project critical path,Calendar-aware "
+        "network recalculation is unavailable,monday_friday_no_holidays\n"
+        "P2,Beta,13,DCMA-13-CPLI,Critical Path Length Index (CPLI),"
+        "not_assessable,,,,index,minimum,0.95,,2026-09-01,"
+        "snapshot_observation_date,project critical path,Critical path length "
+        "cannot be established,monday_friday_no_holidays\n",
         encoding="utf-8",
     )
     (schedule / "schedule_activity_profile.csv").write_text(
-        "ProjectID,ProjectName,TaskID,TaskName,ForecastStart,"
-        "ForecastFinish,DurationDays,Status,IsMilestone,IsOverdue,"
-        "FinishVarianceDays,TotalFloatDays\n"
-        "P1,Alpha,T1,Design,2026-01-01,2026-01-31,30,Active,true,"
-        "true,5,2\n"
-        "P2,Beta,T2,Build,2026-02-01,2026-04-15,73,Active,false,"
-        "false,,\n",
+        "ProjectID,ProjectName,TaskID,TaskName,BaselineStart,BaselineFinish,"
+        "BaselineDurationWorkingDays,ForecastStart,ForecastFinish,"
+        "ForecastDurationDays,ActualStart,ActualFinish,Status,PercentComplete,"
+        "IsMilestone,MilestoneEvidenceAvailable,IsComplete,IsCritical,"
+        "CriticalEvidenceAvailable,TotalFloatDays,FloatEvidenceAvailable,"
+        "ConstraintType,MissingLogic,HasHardConstraint,HasHighFloat,"
+        "HasNegativeFloat,HasHighDuration,HasInvalidDate,MissingResource,"
+        "IsMissedTask,BaselineDueNotComplete\n"
+        "P1,Alpha,T1,Design,2026-01-01,2026-01-31,22,2026-01-01,"
+        "2026-01-31,30,,,Active,50,true,true,false,true,true,-2,true,,true,"
+        "false,false,true,false,false,false,false,false\n"
+        "P2,Beta,T2,Build,2026-02-01,2026-04-15,52,2026-02-01,"
+        "2026-04-15,73,,,Active,25,false,true,false,false,true,,false,,false,"
+        "false,false,false,true,false,false,false,false\n",
         encoding="utf-8",
     )
-    (schedule / "schedule_conditions.csv").write_text(
-        "Severity,RuleID,ProjectID,ProjectName,TaskID,TaskName,"
-        "TaskStart,TaskFinish,Status,Message\n"
-        "medium,SCH-OVERDUE,P1,Alpha,T1,Design,2026-01-01,"
-        "2026-01-31,Active,Task is overdue\n",
+    (schedule / "dcma_14_point_conditions.csv").write_text(
+        "RuleID,MetricNumber,MetricName,ProjectID,ProjectName,EntityType,"
+        "EntityID,TaskID,TaskName,DependencyID,Condition,ObservedValue,"
+        "Threshold,StatusDate,Message\n"
+        "DCMA-01-LOGIC,1,Logic,P1,Alpha,task,T1,T1,Design,,missing_logic,"
+        "successor,5,2026-09-01,Eligible activity is missing successor logic\n",
         encoding="utf-8",
     )
     resource = curated / "resource"
@@ -697,14 +758,15 @@ def test_combined_navigation_switches_workspace_and_finding_views(
         item.value == "Findings and evidence" for item in app.subheader
     )
     assert any(
-        item.value == "Test condition" for item in app.subheader
+        item.value == "Missing schedule logic exceeds the DCMA tripwire"
+        for item in app.subheader
     )
     assert any(
         item.value == "**Deterministic condition**"
         for item in app.markdown
     )
     app.segmented_control(
-        key="finding_detail_SCH-1"
+        key="finding_detail_DCMA-01-LOGIC-1"
     ).set_value("Evidence").run()
     assert not app.exception
     assert any(
@@ -764,7 +826,7 @@ def test_plan_filters_portfolio_and_drills_into_project(
     )
 
 
-def test_schedule_lens_reads_backend_products(tmp_path, monkeypatch):
+def test_schedule_assessment_reads_backend_products(tmp_path, monkeypatch):
     snapshot_id = "snapshot-schedule"
     write_snapshot(tmp_path, "client-001", snapshot_id, "2026-09-01")
     app = app_for(tmp_path, monkeypatch)
@@ -773,21 +835,48 @@ def test_schedule_lens_reads_backend_products(tmp_path, monkeypatch):
 
     assert not app.exception
     assert any(
-        metric.label == "Overdue activities" and metric.value == "1"
+        metric.label == "Outside tripwire" and metric.value == "1"
         for metric in app.metric
     )
     assert any(
-        item.value == "Activity duration distribution"
+        item.value == "Portfolio assessment overview"
         for item in app.subheader
     )
     assert any(
-        item.value == "Deterministic schedule conditions"
+        item.value == "Project assessment coverage"
         for item in app.subheader
     )
     app.selectbox(
-        key=f"schedule_project_{snapshot_id}"
+        key=f"schedule_overview_project_{snapshot_id}"
     ).set_value("P2").run()
     assert not app.exception
+    assert len(app.dataframe[0].value) == 1
+
+    app.segmented_control(
+        key=f"schedule_assessment_view_{snapshot_id}"
+    ).set_value("Metric detail").run()
+    assert not app.exception
+    assert any(
+        item.value == "Metric results and supporting evidence"
+        for item in app.subheader
+    )
+    app.selectbox(
+        key=f"schedule_detail_metric_{snapshot_id}"
+    ).set_value(1).run()
+    assert not app.exception
+    assert len(app.dataframe[0].value) == 2
+    assert len(app.dataframe[1].value) == 1
+
+    app.segmented_control(
+        key=f"schedule_assessment_view_{snapshot_id}"
+    ).set_value("Activity evidence").run()
+    assert not app.exception
+    assert any(
+        item.value == "Activity evidence" for item in app.subheader
+    )
+    assert any(
+        item.value == "Milestone position" for item in app.subheader
+    )
 
 
 def test_resource_lens_reads_backend_products(tmp_path, monkeypatch):

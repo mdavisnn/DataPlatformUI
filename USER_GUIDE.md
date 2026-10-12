@@ -195,18 +195,25 @@ its rule, evidence values, affected entity IDs and supporting governed CSVs.
 
 ### Schedule & plan
 
-Choose between Schedule conditions and Plan on a page.
+Choose between Schedule assessment and Plan on a page.
 
-#### Schedule conditions
+#### Schedule assessment
 
-Review backend-calculated overdue activities and milestones, project condition
-concentration, activity duration distribution, and schedule evidence coverage.
-Use the project and health filters to narrow the saved products. Total float,
-criticality, hierarchy, baseline variance and historical milestone slippage are
-shown as unavailable when the observation cannot support them.
+Review DataPlatform's saved DCMA 14-Point Assessment without recalculating it.
+The portfolio overview shows one recorded result for each project and metric,
+while keeping assessed, outside-tripwire and not-assessable results separate.
+Use Metric detail to inspect values, tripwires, population, evidence coverage,
+status-date provenance and the supporting task or dependency conditions. Use
+Activity evidence to review baseline working-duration, forecast-duration,
+milestone, float, criticality and baseline-coverage evidence.
 
-The Schedule page does not infer critical paths or recalculate the schedule
-rules. Use **Plan on a page** when you need the detailed dated project and task
+Within threshold does not mean healthy, and the page does not calculate a
+composite DCMA score or compliance result. The assessment basis and limitations
+section records the Monday-Friday working-day approximation and explains every
+metric that is unavailable. Critical Path Test and CPLI remain not assessable
+until DataPlatform has defensible calendar-aware network recalculation.
+
+Use **Plan on a page** when you need the detailed dated project and task
 timeline.
 
 #### Plan on a page

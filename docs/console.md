@@ -20,20 +20,23 @@ health matrix with All findings. All findings uses a selectable index and a
 detail view that keeps the persisted rule context, evidence facts, affected
 entities, supporting artifacts and capability fitness visibly distinct.
 
-The **Schedule & plan** destination combines Schedule conditions with Plan on a
-page. The plan view is a point-in-time presentation over one selected snapshot.
-It groups project forecast bars by portfolio and supports project task
-drill-down. It overlays existing Findings only when their governed supporting
-evidence contains usable dates; it does not calculate Findings or infer dates.
+The **Schedule & plan** destination combines the DCMA 14-Point Schedule
+assessment with Plan on a page. The plan view is a point-in-time presentation
+over one selected snapshot. It groups project forecast bars by portfolio and
+supports project task drill-down. It overlays existing Findings only when their
+governed supporting evidence contains usable dates; it does not calculate
+Findings or infer dates.
 
-The **Schedule conditions** and **Resources** views consume named products recorded on
-their successful diagnostic outcomes. Schedule uses project, activity and
-condition evidence. Resources uses resource and project rollups, dated
-assignment evidence, conflict periods and unassigned work. Its Summary, By
-person and By project perspectives only arrange these saved products. Both
-pages expose backend-recorded coverage, assumptions and unavailable measures;
-the console does not recreate rule flags, allocation pressure or coverage
-calculations.
+The **Schedule assessment** and **Resources** views consume named products
+recorded on their successful diagnostic outcomes. Schedule uses the saved DCMA
+project rollup, one result per project and metric, task or dependency conditions
+and the activity profile. Its Portfolio overview, Metric detail and Activity
+evidence perspectives arrange those products without creating a composite
+score. Resources uses resource and project rollups, dated assignment evidence,
+conflict periods and unassigned work. Its Summary, By person and By project
+perspectives only arrange these saved products. Both pages expose
+backend-recorded coverage, assumptions and unavailable measures; the console
+does not recreate rule flags, allocation pressure or coverage calculations.
 
 The **Evidence & fitness** view combines capability summaries with their saved
 row-level fitness evidence to show descriptive rule names, affected fields and
