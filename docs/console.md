@@ -13,12 +13,14 @@ patterns. Each destination renders only its selected view. Interpretations are
 not exposed until that workflow is implemented.
 
 The **Workspace** destination combines the executive Overview with Evidence &
-fitness. Its Overview presents a compact evidence, diagnostic-coverage and
-fitness summary before the governed portfolio attention map and priority
-Findings. The **Projects & findings** destination combines the saved Project
-health matrix with All findings. All findings uses a selectable index and a
-detail view that keeps the persisted rule context, evidence facts, affected
-entities, supporting artifacts and capability fitness visibly distinct.
+fitness. Its Overview presents four decision-oriented measures, a compact
+coverage summary, the governed portfolio attention map and a short priority
+signal rail. Secondary Finding distributions are available on demand. The
+**Projects & findings** destination combines the saved Project health matrix
+with All findings. All findings puts its selectable index and detail view
+before optional distribution charts, keeping persisted rule context, evidence
+facts, affected entities, supporting artifacts and capability fitness visibly
+distinct.
 
 The **Schedule & plan** destination combines the DCMA 14-Point Schedule
 assessment with Plan on a page. The plan view is a point-in-time presentation
@@ -54,6 +56,9 @@ values; interactive controls only narrow or arrange the evidence.
 The **History** destination presents one selected governed product at a time.
 Trend windows show saved observation and transition counts, continuity policy,
 forecast-finish trajectories, historical Findings and evidence-fitness limits.
+The portfolio trajectory is primary; a single-project inspection is revealed
+only when requested. Historical Findings use the same compact priority-signal
+treatment as the executive Overview.
 Two-observation comparisons show the same identity and comparability context
 beside their saved change evidence. The UI does not declare observations
 comparable beyond the recorded contract, bridge absent projects, introduce a
@@ -61,8 +66,10 @@ materiality threshold, or interpret why movement occurred.
 
 ## Release 2 — Operate
 
-The **Run the lab** page presents the existing consultant sequence as three
-visible operational stages with current readiness and governed-product counts:
+The **Run the lab** page presents the existing consultant sequence as one
+active operational stage with current readiness and governed-product counts.
+The first actionable stage opens automatically; completed earlier stages stay
+selectable:
 
 1. place evidence in the client's configured `raw/<client_id>/` inbox;
 2. inspect and profile the evidence;
@@ -83,19 +90,36 @@ the operation page launches those modules with the UI's Python interpreter.
 ## Deterministic scenario planning
 
 The optional **Scenario planning** page is a control and review surface over
-the separate SchedulePlatform repository. It builds the published strict V1
-JSON configuration from explicit consultant inputs and invokes the
+the separate SchedulePlatform repository. It builds the published strict V1.1
+JSON configuration, including an explicit inclusive planning horizon, from
+consultant inputs and invokes the
 schedule_platform.cli generate command. SchedulePlatform owns validation,
 baseline assessment, candidate generation, feasibility, ranking and the
 isolated output package. DataPlatformUI reads those saved products and performs
 only presentation transforms.
+
+The command runs through `SCHEDULE_PLATFORM_PYTHON`, normally the scheduling
+repository's own virtual environment. The page first executes the CLI version
+check with the same interpreter, working directory and `PYTHONPATH`, so missing
+scheduling dependencies are reported before a consultant submits the form. The
+UI does not install or import the scheduling engine's solver dependencies.
+
+CP-SAT is protected by an explicit integration gate. The console requires a
+published V1.1 backend selector, a public `generate --backend cp-sat` command,
+and a valid `generation_result_v1.schema.json` containing backend, solver,
+settings and authoritative-validation provenance. The current SchedulePlatform
+checkout does not publish those integration contracts, so the UI offers only
+bounded deterministic generation even though internal CP-SAT classes exist.
 
 The planning form is one programmatically collapsible section so generated
 results remain close to the top of the page. Result adapters align baseline and
 scenario resource-load intervals around the periods that changed, identify
 changed assignments and summarise overload and finish-movement effects. These
 are display calculations over the saved package; they do not alter ranking or
-create diagnostic Findings.
+create diagnostic Findings. The result surface also presents the validated 1.1
+contract, horizon, bounded-search limits, configuration fingerprint and saved
+engine/rule versions. Horizon-exceeded constraint evidence is promoted to an
+actionable result-level message.
 
 Scenario packages are keyed to one client and source snapshot but are not
 written into DataPlatform storage. They are hypothetical planning artefacts,
@@ -106,6 +130,9 @@ not canonical observations, diagnostic Findings or historical evidence.
 `python -m services.demo` stages five synthetic v2 datasets for `demo-ui` and
 creates a genuine observation through DataPlatform's inspection, assessment
 and diagnosis commands. It does not hand-write governed metadata or Findings.
+`python -m services.demo --reset` first removes only `demo-ui` and the legacy
+`demo-001` fixture from local DataPlatform and SchedulePlatform roots. V1.0
+synthetic scenario packages are reset rather than migrated.
 
 ## Prototype boundary
 

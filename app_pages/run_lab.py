@@ -14,14 +14,6 @@ from services.console_context import console_context, safe
 from services.workflow import assess_evidence, diagnose_snapshot, inspect_evidence
 
 
-def _stage_badge(label: str, ready: bool) -> None:
-    st.badge(
-        f"{label} · {'Ready' if ready else 'Waiting'}",
-        icon=":material/check_circle:" if ready else ":material/hourglass_empty:",
-        color="green" if ready else "gray",
-    )
-
-
 def _operation_result(result: dict) -> bool:
     succeeded = result["exit_code"] == 0
     st.code(result["output"] or "No command output was returned.")
@@ -36,10 +28,9 @@ snapshots = safe(lambda: catalogue.list_snapshots(client_id), []) if client_id e
 
 render_hero(
     "Operate",
-    "Run the lab",
-    "An operational viewpoint over the evidence lifecycle from inspection to "
-    "assessment and diagnosis. Use it to run the existing deterministic "
-    "workflow with explicit human control and reproducible identifiers.",
+    "Turn evidence into a governed observation",
+    "Move from inspection to assessment and deterministic diagnosis with "
+    "explicit human control and reproducible identifiers.",
     icon=":material/play_circle:",
 )
 
@@ -71,178 +62,223 @@ render_metric_row([
     ),
 ])
 
-with st.container(
-    border=True,
-    horizontal=True,
+stages = ["1 · Inspect", "2 · Assess", "3 · Diagnose"]
+recommended_stage = (
+    "2 · Assess"
+    if awaiting
+    else "3 · Diagnose"
+    if snapshots
+    else "1 · Inspect"
+)
+readiness_signature = (
+    str(client_id or ""),
+    len(awaiting),
+    len(snapshots),
+)
+if st.session_state.get("run_lab_readiness_signature") != readiness_signature:
+    st.session_state["run_lab_stage"] = recommended_stage
+    st.session_state["run_lab_readiness_signature"] = readiness_signature
+
+stage = st.segmented_control(
+    "Workflow stage",
+    stages,
+    key="run_lab_stage",
+    required=True,
+    persist_state="session",
     wrap=True,
-    horizontal_alignment="distribute",
-    vertical_alignment="center",
-    gap="small",
-):
-    _stage_badge("1 · Inspect", bool(client_id))
-    st.caption(":material/arrow_forward:")
-    _stage_badge("2 · Assess", bool(awaiting))
-    st.caption(":material/arrow_forward:")
-    _stage_badge("3 · Diagnose", bool(snapshots))
+    help=(
+        "The first actionable stage opens automatically. Earlier stages "
+        "remain available for review or another controlled run."
+    ),
+)
 
-with render_panel(
-    "1 · Understand the evidence",
-    "Discover and profile supported source files before any canonical observation exists.",
-    icon=":material/search:",
-):
-    st.caption(
-        "Raw inbox: "
-        f"{settings.storage_root / 'raw' / str(client_id or '<select-client>')}"
-    )
-    st.info(
-        "Inspection creates a technical run ID. It does not create a business "
-        "observation or diagnose delivery performance.",
-        icon=":material/info:",
-    )
-    if st.button(
-        "Inspect raw evidence",
-        type="primary",
+if stage == "1 · Inspect":
+    with render_panel(
+        "1 · Understand the evidence",
+        "Discover and profile supported source files before any canonical observation exists.",
         icon=":material/search:",
-        disabled=not client_id,
     ):
-        with st.status("Inspecting evidence…", expanded=True) as status:
-            result = inspect_evidence(settings, client_id)
-            succeeded = _operation_result(result)
-            status.update(
-                label="Inspection complete" if succeeded else "Inspection failed",
-                state="complete" if succeeded else "error",
-                expanded=not succeeded,
-            )
-
-with render_panel(
-    "2 · Assess and canonicalise",
-    "Assess one inspected run for an explicit business observation date.",
-    icon=":material/fact_check:",
-):
-    if awaiting:
         st.badge(
-            "Ready for assessment",
-            icon=":material/check_circle:",
-            color="green",
+            "Ready" if client_id else "Select a client",
+            icon=(
+                ":material/check_circle:"
+                if client_id else ":material/hourglass_empty:"
+            ),
+            color="green" if client_id else "gray",
         )
         st.caption(
-            f"{len(awaiting)} inspected run(s) are ready for assessment."
+            "Raw inbox: "
+            f"{settings.storage_root / 'raw' / str(client_id or '<select-client>')}"
         )
-    else:
-        st.badge(
-            "Waiting for an inspected run",
-            icon=":material/hourglass_empty:",
-            color="gray",
-        )
-
-    with st.form("assess-form", border=False):
-        run_id = st.selectbox(
-            "Technical run ID",
-            [item["run_id"] for item in awaiting],
-            disabled=not awaiting,
-            help="Identifies when and how the source evidence was processed.",
-        )
-        observation_date = st.date_input(
-            "Business observation date",
-            value=date.today(),
-            help="The date the source evidence describes, not the processing date.",
-        )
-        submitted = st.form_submit_button(
-            "Assess evidence",
-            disabled=not awaiting,
-            icon=":material/fact_check:",
-        )
-    if not awaiting:
-        st.caption("No inspected runs are awaiting assessment.")
-    if submitted:
-        with st.status("Assessing evidence…", expanded=True) as status:
-            result = assess_evidence(
-                settings,
-                client_id,
-                run_id,
-                observation_date,
-            )
-            succeeded = _operation_result(result)
-            status.update(
-                label="Assessment complete" if succeeded else "Assessment failed",
-                state="complete" if succeeded else "error",
-                expanded=not succeeded,
-            )
-
-with render_panel(
-    "3 · Diagnose the observation",
-    "Run deterministic diagnostic rules against one explicit canonical snapshot.",
-    icon=":material/analytics:",
-):
-    if not snapshots:
         st.info(
-            "Complete an assessment before running diagnosis.",
+            "Inspection creates a technical run ID. It does not create a "
+            "business observation or diagnose delivery performance.",
             icon=":material/info:",
         )
-    else:
-        options = {
-            (
-                f"{item.get('observation_date', 'Undated')} · "
-                f"{item['snapshot_id']}"
-            ): item["snapshot_id"]
-            for item in snapshots
-        }
-        target = st.selectbox(
-            "Canonical observation",
-            list(options),
-            key="diagnosis_snapshot",
-            help=(
-                "The snapshot ID identifies the immutable canonical observation "
-                "used by diagnosis."
-            ),
-        )
-        fitness = safe(
-            lambda: catalogue.snapshot_bundle(
-                options[target],
-                client_id,
-            )["fitness"],
-            {},
-        )
-        not_fit = [
-            name
-            for name, value in fitness.get("capabilities", {}).items()
-            if value.get("status") == "not_fit"
-        ]
-        if not_fit:
-            st.error(
-                f"{len(not_fit)} capability assessment(s) are not fit. "
-                "Diagnosis requires an explicit capability-scoped acknowledgement.",
-                icon=":material/block:",
-            )
-        else:
-            st.success(
-                "No not-fit capability assessments require acknowledgement.",
-                icon=":material/check_circle:",
-            )
-        overrides = st.pills(
-            "Explicitly acknowledge not-fit capabilities",
-            not_fit,
-            selection_mode="multi",
-            disabled=not not_fit,
-            help=(
-                "Only select a capability when you deliberately accept its "
-                "evidence limitation."
-            ),
-        )
-        if st.button("Run diagnosis", icon=":material/analytics:"):
-            with st.status("Running diagnosis…", expanded=True) as status:
-                result = diagnose_snapshot(
-                    settings,
-                    client_id,
-                    options[target],
-                    list(overrides or []),
-                )
+        if st.button(
+            "Inspect raw evidence",
+            type="primary",
+            icon=":material/search:",
+            disabled=not client_id,
+        ):
+            with st.status("Inspecting evidence…", expanded=True) as status:
+                result = inspect_evidence(settings, client_id)
                 succeeded = _operation_result(result)
                 status.update(
-                    label="Diagnosis complete" if succeeded else "Diagnosis failed",
+                    label=(
+                        "Inspection complete"
+                        if succeeded else "Inspection failed"
+                    ),
                     state="complete" if succeeded else "error",
                     expanded=not succeeded,
                 )
+
+elif stage == "2 · Assess":
+    with render_panel(
+        "2 · Assess and canonicalise",
+        "Assess one inspected run for an explicit business observation date.",
+        icon=":material/fact_check:",
+    ):
+        if not awaiting:
+            st.info(
+                "No inspected runs are awaiting assessment. Open Inspect to "
+                "create another technical run.",
+                icon=":material/info:",
+            )
+        else:
+            st.badge(
+                f"{len(awaiting)} run(s) ready",
+                icon=":material/check_circle:",
+                color="green",
+            )
+            with st.form("assess-form", border=False):
+                run_id = st.selectbox(
+                    "Technical run ID",
+                    [item["run_id"] for item in awaiting],
+                    help=(
+                        "Identifies when and how the source evidence was "
+                        "processed."
+                    ),
+                )
+                observation_date = st.date_input(
+                    "Business observation date",
+                    value=date.today(),
+                    help=(
+                        "The date the source evidence describes, not the "
+                        "processing date."
+                    ),
+                )
+                submitted = st.form_submit_button(
+                    "Assess evidence",
+                    icon=":material/fact_check:",
+                )
+            if submitted:
+                with st.status(
+                    "Assessing evidence…", expanded=True
+                ) as status:
+                    result = assess_evidence(
+                        settings,
+                        client_id,
+                        run_id,
+                        observation_date,
+                    )
+                    succeeded = _operation_result(result)
+                    status.update(
+                        label=(
+                            "Assessment complete"
+                            if succeeded else "Assessment failed"
+                        ),
+                        state="complete" if succeeded else "error",
+                        expanded=not succeeded,
+                    )
+
+else:
+    with render_panel(
+        "3 · Diagnose the observation",
+        "Run deterministic diagnostic rules against one explicit canonical snapshot.",
+        icon=":material/analytics:",
+    ):
+        if not snapshots:
+            st.info(
+                "Complete an assessment before running diagnosis.",
+                icon=":material/info:",
+            )
+        else:
+            options = {
+                (
+                    f"{item.get('observation_date', 'Undated')} · "
+                    f"{item['snapshot_id']}"
+                ): item["snapshot_id"]
+                for item in snapshots
+            }
+            target = st.selectbox(
+                "Canonical observation",
+                list(options),
+                key="diagnosis_snapshot",
+                help=(
+                    "The snapshot ID identifies the immutable canonical "
+                    "observation used by diagnosis."
+                ),
+            )
+            fitness = safe(
+                lambda: catalogue.snapshot_bundle(
+                    options[target],
+                    client_id,
+                )["fitness"],
+                {},
+            )
+            not_fit = [
+                name
+                for name, value in fitness.get(
+                    "capabilities", {}
+                ).items()
+                if value.get("status") == "not_fit"
+            ]
+            if not_fit:
+                st.error(
+                    f"{len(not_fit)} capability assessment(s) are not fit. "
+                    "Diagnosis requires an explicit capability-scoped "
+                    "acknowledgement.",
+                    icon=":material/block:",
+                )
+            else:
+                st.success(
+                    "No not-fit capability assessments require acknowledgement.",
+                    icon=":material/check_circle:",
+                )
+            overrides = st.pills(
+                "Explicitly acknowledge not-fit capabilities",
+                not_fit,
+                selection_mode="multi",
+                disabled=not not_fit,
+                help=(
+                    "Only select a capability when you deliberately accept "
+                    "its evidence limitation."
+                ),
+            )
+            if st.button(
+                "Run diagnosis",
+                icon=":material/analytics:",
+                type="primary",
+            ):
+                with st.status(
+                    "Running diagnosis…", expanded=True
+                ) as status:
+                    result = diagnose_snapshot(
+                        settings,
+                        client_id,
+                        options[target],
+                        list(overrides or []),
+                    )
+                    succeeded = _operation_result(result)
+                    status.update(
+                        label=(
+                            "Diagnosis complete"
+                            if succeeded else "Diagnosis failed"
+                        ),
+                        state="complete" if succeeded else "error",
+                        expanded=not succeeded,
+                    )
 
 st.caption(
     "Run ID records technical processing. Observation date records when the "

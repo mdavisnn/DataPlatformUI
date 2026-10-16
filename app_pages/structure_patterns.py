@@ -4,14 +4,26 @@ from components.console import render_hero
 from services.page_views import run_page_view
 
 
-render_hero(
-    "STRUCTURAL REVIEW",
-    "Structure & patterns",
-    "A structural and peer-pattern viewpoint across dependencies and saved "
-    "distributions. Use it to identify coupling, concentrations and unusual "
-    "values for investigation, without inferring causes.",
-    icon=":material/account_tree:",
+current_view = st.session_state.get(
+    "structure_patterns_view", "Dependencies"
 )
+hero = {
+    "Dependencies": (
+        "Dependencies",
+        "Where is delivery coupled?",
+        "Review governed dependency structure, cross-project links and "
+        "concentrations without inferring causes.",
+        ":material/account_tree:",
+    ),
+    "Patterns": (
+        "Patterns",
+        "What looks unusual?",
+        "Explore saved distributions and unusual values as investigative "
+        "signals rather than proof of poor performance.",
+        ":material/query_stats:",
+    ),
+}[current_view]
+render_hero(*hero[:3], icon=hero[3])
 
 view = st.segmented_control(
     "Structure and patterns view",

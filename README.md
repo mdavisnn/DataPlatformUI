@@ -86,7 +86,15 @@ To enable scenario planning, configure the separate SchedulePlatform checkout:
 
 ```dotenv
 SCHEDULE_PLATFORM_PATH=D:\Data Lab\SchedulePlatform
+SCHEDULE_PLATFORM_PYTHON=D:\Data Lab\SchedulePlatform\.venv\Scripts\python.exe
 ```
+
+Use a SchedulePlatform-owned environment so its scheduling dependencies remain
+separate from the UI. For example, create `.venv` in the SchedulePlatform
+checkout and install that project there. If `SCHEDULE_PLATFORM_PYTHON` is not
+set, the UI looks for that local `.venv` before trying its own interpreter. The
+scenario form is enabled only when the chosen interpreter can run
+`python -m schedule_platform.cli --version` successfully.
 
 Scenario results default to SchedulePlatform/output. To use another local
 root, set SCHEDULE_PLATFORM_OUTPUT_ROOT. The output root must not overlap
@@ -146,16 +154,18 @@ resulting observation from the sidebar.
 ## Console pages
 
 - **Workspace** combines an Overview with Evidence & fitness. The Overview
-  presents the backend-produced executive snapshot, diagnostic coverage,
-  evidence limitations and priority Findings. Its project attention map keeps
-  schedule conditions, resource conflicts, dependency connectivity and Finding
-  severity as separate cues. Evidence & fitness separates structural blockers,
-  caveats and unavailable rules from delivery conditions.
+  opens with four decision-oriented measures: projects, Findings, projects
+  affected and evidence fitness. A compact coverage summary then gives way to
+  the portfolio attention map and a short priority-signal rail. Finding
+  distributions remain available on demand rather than competing with the
+  main review path. Evidence & fitness separates structural blockers, caveats
+  and unavailable rules from delivery conditions.
 - **Projects & findings** combines Project health with All findings. Project
   health compares projects across separate backend-produced portfolio,
   schedule, resource, reporting and dependency dimensions without creating an
-  overall score. All findings exposes deterministic conditions, affected
-  entities, rules and supporting governed evidence.
+  overall score. All findings places the selectable Finding and its governed
+  evidence before optional distribution charts, keeping deterministic
+  conditions, affected entities and rule context in one master-detail flow.
 - **Schedule & plan** combines the DCMA 14-Point Schedule assessment with Plan
   on a page. Schedule assessment presents the saved project-by-metric matrix,
   tripwire results, unavailable metrics, supporting conditions, durations and
@@ -173,22 +183,24 @@ resulting observation from the sidebar.
   and values outside configured IQR fences without treating unusualness as
   proof of poor performance.
 - **History** provides a focused trend-window or two-observation workspace.
-  It keeps observation dates and snapshot IDs visible, summarises saved
-  fitness caveats and the comparability contract, and shows recorded
-  historical Findings alongside the interactive delivery trajectory or
-  row-level change evidence. Continuity breaks remain visible and significance
-  is left to consultant interpretation.
-- **Scenario planning** creates a strict SchedulePlatform V1 configuration for
-  the selected snapshot, runs bounded deterministic generation, and reads the
-  saved client-scoped result package. Its collapsible configuration gives way
+  Portfolio trajectory is the default analytical focus; individual project
+  inspection is available on demand. Observation dates and snapshot IDs remain
+  visible beside saved fitness caveats, the comparability contract, recorded
+  historical Findings and row-level change evidence. Continuity breaks remain
+  visible and significance is left to consultant interpretation.
+- **Scenario planning** creates a strict SchedulePlatform V1.1 configuration
+  for the selected snapshot, including an explicit inclusive planning horizon,
+  then runs bounded deterministic generation and reads the saved client-scoped
+  result package. Its collapsible configuration gives way
   to ranked options with separate resource-load, timeline, action and evidence
   views. Baselines, scenario feasibility and hypothetical outputs remain
   separate from DataPlatform Findings and history.
-- **Run the lab** presents inspection, assessment and diagnosis as three
-  explicit stages with readiness cues and identifier guidance. The controls
-  still launch the existing synchronous DataPlatform commands: client identity
-  is supplied only when inspection begins, while downstream ownership is
-  resolved from run or snapshot metadata.
+- **Run the lab** presents inspection, assessment and diagnosis as one active
+  stage at a time. The first actionable stage opens automatically, while
+  completed earlier stages remain directly selectable. The controls still
+  launch the existing synchronous DataPlatform commands: client identity is
+  supplied only when inspection begins, while downstream ownership is resolved
+  from run or snapshot metadata.
 
 The global Client and Observation selectors remain in the **Data scope**
 section at the end of the sidebar, beneath the navigation.
@@ -221,6 +233,26 @@ Findings and lineage. It is not preserved for history automatically.
 
 The fixed demo is safe to rerun: an existing completed observation is reused,
 and changed files already present in `raw/demo-ui` are never overwritten.
+
+To discard and rebuild only the fixed synthetic identities (`demo-ui` and the
+legacy `demo-001` fixture), run:
+
+```powershell
+.venv\Scripts\python.exe -m services.demo --reset
+```
+
+The reset removes those client directories from DataPlatform's local raw,
+processed, curated and metadata areas and from the configured SchedulePlatform
+output root. It refuses scenario directories whose saved configuration belongs
+to another client. Other client data is not touched. Because there is no legacy
+production scenario data, V1.0 packages are reset rather than migrated.
+
+CP-SAT is not selectable in the console yet. Its presence in the
+SchedulePlatform Python package is insufficient: the integration gate requires
+a published V1.1 backend selector, a public `generate --backend cp-sat` CLI
+contract, and a JSON result schema containing solver identity, version,
+settings and authoritative-validation provenance. Until all three contracts
+exist, bounded deterministic generation remains the only execution backend.
 
 ## Tests
 

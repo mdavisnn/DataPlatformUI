@@ -103,30 +103,32 @@ def render_observation_context(
     observation_date: str | None,
     snapshot_id: str | None,
 ) -> None:
-    """Keep business observation identity visible in the shared app shell."""
+    """Keep governed identity visible as compact application context."""
 
     with st.container(
-        border=True,
         horizontal=True,
         wrap=True,
-        horizontal_alignment="distribute",
         vertical_alignment="center",
-        gap="small",
+        gap="xsmall",
     ):
-        st.markdown(
-            f"**Client**  \n{client_id or 'No client selected'}"
+        st.badge(
+            client_id or "No client selected",
+            icon=":material/business:",
+            color="gray",
         )
-        st.markdown(
-            f"**Observation**  \n{observation_date or 'Not available'}"
+        st.caption(
+            f":material/calendar_today: Observation "
+            f"{observation_date or 'not available'}"
         )
-        st.markdown(
-            f"**Snapshot**  \n{snapshot_id or 'Not available'}"
+        st.caption(
+            f":material/fingerprint: Snapshot "
+            f"{snapshot_id or 'not available'}"
         )
-        if client_id == "demo-ui":
+        if str(client_id or "").startswith("demo"):
             st.badge(
                 "Synthetic demo",
                 icon=":material/science:",
-                color="orange",
+                color="blue",
             )
 
 
@@ -134,11 +136,11 @@ def status_badge(status: str | None) -> str:
     normalised = str(status or "unknown").lower()
     color = {
         "fit": "green",
-        "fit_with_caveats": "orange",
+        "fit_with_caveats": "yellow",
         "not_fit": "red",
         "high": "red",
-        "medium": "orange",
-        "low": "green",
+        "medium": "yellow",
+        "low": "gray",
     }.get(normalised, "gray")
     label = normalised.replace("_", " ").title()
     return f":{color}-badge[{label}]"
@@ -167,3 +169,21 @@ def render_finding(finding: dict[str, Any]) -> None:
             if value
         )
         st.caption(metadata)
+
+
+def render_finding_signal(finding: dict[str, Any]) -> None:
+    """Render one compact priority signal for executive review."""
+
+    with st.container(border=True, gap="small"):
+        st.markdown(status_badge(finding.get("severity")))
+        st.markdown(f"**{finding.get('title', 'Untitled finding')}**")
+        st.caption(
+            " · ".join(
+                value for value in (
+                    str(finding.get("domain", "unknown")).title(),
+                    str(finding.get("rule_id", "No rule")),
+                    f"{affected_entity_count(finding)} affected reference(s)",
+                )
+                if value
+            )
+        )

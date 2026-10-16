@@ -82,7 +82,6 @@ try:
     clients = safe(catalogue.list_clients, [])
 except SettingsError as error:
     with st.sidebar:
-        st.divider()
         render_exit_control()
     st.error(str(error), icon=":material/error:")
     st.info(
@@ -95,7 +94,6 @@ st.session_state.setdefault("selected_client_id", None)
 st.session_state.setdefault("selected_snapshot_id", None)
 
 with st.sidebar:
-    st.divider()
     st.subheader("Data scope", icon=":material/database:")
     snapshots = []
     if clients:
@@ -151,8 +149,11 @@ with st.sidebar:
     elif clients:
         st.session_state["selected_snapshot_id"] = None
         st.caption("No assessed observations are available for this client.")
-    st.caption(f"Storage: {settings.storage_root}")
-    st.divider()
+    with st.expander(
+        "Technical details",
+        icon=":material/settings:",
+    ):
+        st.caption(f"Storage: {settings.storage_root}")
     render_exit_control()
 
 selected_snapshot = next(

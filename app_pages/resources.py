@@ -414,11 +414,10 @@ def _project_view(
 _, catalogue, client_id, snapshot = console_context()
 
 render_hero(
-    "Point-in-time diagnostic",
     "Resources",
-    "A capacity-and-assignment viewpoint over allocation pressure, shared "
-    "people and cross-project contention. Use it to identify where planned "
-    "work may compete for resources without inferring actual utilisation.",
+    "Where is capacity under pressure?",
+    "Review allocation pressure, shared people and cross-project contention "
+    "without inferring actual utilisation.",
     icon=":material/groups:",
 )
 

@@ -7,10 +7,10 @@ import pandas as pd
 
 
 STATUS_DOMAIN = ["Significant", "Attention", "No finding"]
-STATUS_RANGE = ["#c2413b", "#d2872c", "#55738d"]
+STATUS_RANGE = ["#dc2626", "#d97706", "#64748b"]
 DOMAIN_COLORS = {
     "Portfolio": "#6b7280",
-    "Schedule": "#b45309",
+    "Schedule": "#0f766e",
     "Resources": "#2563a6",
     "Dependencies": "#6d4ca5",
 }

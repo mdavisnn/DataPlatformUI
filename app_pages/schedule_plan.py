@@ -4,14 +4,26 @@ from components.console import render_hero
 from services.page_views import run_page_view
 
 
-render_hero(
-    "SCHEDULE REVIEW",
-    "Schedule & plan",
-    "A time-and-sequencing viewpoint from DCMA schedule assessment through to "
-    "dated project and task plans. Use it to understand delivery exposure and "
-    "where supported findings sit in the plan.",
-    icon=":material/view_timeline:",
+current_view = st.session_state.get(
+    "schedule_plan_view", "Schedule assessment"
 )
+hero = {
+    "Schedule assessment": (
+        "Schedule",
+        "Where is the plan exposed?",
+        "Review deterministic schedule conditions, coverage and supporting "
+        "activity evidence.",
+        ":material/assessment:",
+    ),
+    "Plan on a page": (
+        "Plan",
+        "When is the work expected to happen?",
+        "Place projects, activities and dated findings into a governed "
+        "forecast timeline.",
+        ":material/view_timeline:",
+    ),
+}[current_view]
+render_hero(*hero[:3], icon=hero[3])
 
 view = st.segmented_control(
     "Schedule and plan view",

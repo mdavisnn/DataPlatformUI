@@ -17,10 +17,12 @@ from services.scenario_planning import (
     assignment_change_frame,
     build_configuration_document,
     candidate_summary_frame,
+    constraint_violation_frame,
     default_project_policies,
     empty_substitutions,
     empty_targets,
     list_generation_packages,
+    observed_schedule_bounds,
     project_comparison_frame,
     resource_impact_summary,
     resource_load_comparison_frame,
@@ -43,11 +45,10 @@ ACTION_LABELS = {
 settings, catalogue, client_id, snapshot = console_context()
 
 render_hero(
-    "Deterministic planning",
-    "Scenario planning",
-    "A controlled what-if viewpoint over bounded schedule changes. Use it to "
-    "compare feasible options against the immutable canonical baseline while "
-    "keeping hypothetical plans separate from diagnostic findings.",
+    "Scenarios",
+    "What could improve the plan?",
+    "Compare bounded, feasible schedule options against the immutable "
+    "canonical baseline while keeping scenarios separate from findings.",
     icon=":material/event_repeat:",
 )
 
@@ -80,6 +81,7 @@ try:
     tasks = catalogue.read_snapshot_dataset(snapshot, "tasks")
     resources = catalogue.read_snapshot_dataset(snapshot, "resources")
     assignments = catalogue.read_snapshot_dataset(snapshot, "assignments")
+    _dependencies = catalogue.read_snapshot_dataset(snapshot, "dependencies")
 except (FileNotFoundError, ValueError, MetadataReadError) as error:
     st.warning(
         "This observation cannot support scenario planning because its "
@@ -89,6 +91,11 @@ except (FileNotFoundError, ValueError, MetadataReadError) as error:
 
 try:
     policy_defaults = default_project_policies(projects)
+    observed_start, observed_finish = observed_schedule_bounds(
+        projects,
+        tasks,
+        assignments,
+    )
 except ScenarioPlanningError as error:
     st.warning(str(error))
     st.stop()
@@ -124,6 +131,10 @@ if st.session_state.pop(collapse_request_key, False):
 objective_key = f"scenario_objective_{snapshot_id}"
 scenario_count_key = f"scenario_count_{snapshot_id}"
 actions_key = f"scenario_actions_{snapshot_id}"
+horizon_start_key = f"scenario_horizon_start_{snapshot_id}"
+horizon_end_key = f"scenario_horizon_end_{snapshot_id}"
+st.session_state.setdefault(horizon_start_key, observed_start)
+st.session_state.setdefault(horizon_end_key, observed_finish)
 summary_objective = OBJECTIVE_LABELS.get(
     st.session_state.get(objective_key, "protect_priority"),
     "Protect priority",
@@ -141,8 +152,13 @@ config_panel = st.expander(
     on_change="rerun",
 )
 config_panel.caption(
-    "All fields become a strict SchedulePlatform V1 JSON configuration and "
+    "All fields become a strict SchedulePlatform V1.1 JSON configuration and "
     "are validated again by the scheduling engine."
+)
+config_panel.caption(
+    "Execution backend: bounded deterministic search. CP-SAT remains "
+    "deliberately unavailable until SchedulePlatform publishes its config, "
+    "CLI and persisted solver-provenance contracts."
 )
 
 with config_panel.form(f"scenario_configuration_{snapshot_id}", border=False):
@@ -177,6 +193,25 @@ with config_panel.form(f"scenario_configuration_{snapshot_id}", border=False):
         step=1,
         key=f"scenario_action_depth_{snapshot_id}",
     )
+
+    with st.container(border=True):
+        st.markdown("#### Planning horizon")
+        st.caption(
+            "The observed baseline spans "
+            f"{observed_start:%d %b %Y} to {observed_finish:%d %b %Y}. "
+            "The horizon is inclusive and uses elapsed calendar days. "
+            "Extend it explicitly if a scenario may move work beyond the "
+            "observed finish."
+        )
+        horizon_columns = st.columns(2)
+        planning_horizon_start = horizon_columns[0].date_input(
+            "Horizon start",
+            key=horizon_start_key,
+        )
+        planning_horizon_end = horizon_columns[1].date_input(
+            "Horizon end",
+            key=horizon_end_key,
+        )
 
     selected_action_labels = st.pills(
         "Permitted replanning actions",
@@ -305,6 +340,10 @@ if submitted:
             client_id=client_id,
             snapshot_id=snapshot_id,
             objective=objective,
+            planning_horizon_start=planning_horizon_start,
+            planning_horizon_end=planning_horizon_end,
+            observed_schedule_start=observed_start,
+            observed_schedule_end=observed_finish,
             scenario_count=int(scenario_count),
             candidate_limit=int(candidate_limit),
             max_action_depth=int(max_action_depth),
@@ -364,7 +403,10 @@ selected_run_id = st.selectbox(
 )
 package = run_by_id[selected_run_id]
 run = package["run"]
+configuration = package["configuration"]
 generation = package["generation"]
+planning = configuration.get("planning", {})
+planning_horizon = planning.get("planning_horizon", {})
 
 st.divider()
 st.subheader("Generation outcome")
@@ -375,6 +417,50 @@ render_metric_row([
     ("States deduplicated", generation.get("states_deduplicated")),
     ("Search truncated", "Yes" if generation.get("search_truncated") else "No"),
 ])
+
+with st.container(border=True):
+    st.subheader("SchedulePlatform 1.1 run contract")
+    st.caption(
+        "These values come from the validated configuration and saved run "
+        "record, rather than being inferred from the displayed results."
+    )
+    render_metric_row([
+        ("Config version", configuration.get("config_version")),
+        (
+            "Planning horizon",
+            f"{planning_horizon.get('start_date', 'Unknown')} → "
+            f"{planning_horizon.get('end_date', 'Unknown')}",
+        ),
+        ("Generation method", "Bounded deterministic search"),
+        (
+            "Objective",
+            OBJECTIVE_LABELS.get(
+                planning.get("objective"), planning.get("objective")
+            ),
+        ),
+    ])
+    render_metric_row([
+        ("Candidate limit", planning.get("candidate_limit")),
+        ("Action depth", planning.get("max_action_depth")),
+        ("Engine", run.get("engine_version")),
+        ("Rules", run.get("rule_set_version")),
+    ])
+    st.caption(
+        "Configuration fingerprint: "
+        f"{run.get('configuration_fingerprint', 'Not recorded')}"
+    )
+
+violation_summary = constraint_violation_frame(generation)
+horizon_violations = violation_summary.loc[
+    violation_summary["Code"] == "PLANNING-HORIZON-EXCEEDED"
+]
+if not horizon_violations.empty:
+    st.error(
+        f"{len(horizon_violations)} candidate constraint violation(s) "
+        "exceeded the configured planning horizon. Extend the horizon in "
+        "Planning configuration before generating another run.",
+        icon=":material/date_range:",
+    )
 
 for warning in generation.get("warnings", []):
     st.warning(
@@ -422,24 +508,9 @@ if not selected_candidates:
         "No generated scenario was selected. Review the status, baseline "
         "conditions, configured permissions, and search bounds."
     )
-    evaluated = generation.get("evaluated_candidates", [])
-    violations = [
-        {
-            "Proposal": candidate.get("proposal", {}).get("proposal_id"),
-            "Feasibility": candidate.get("result", {}).get(
-                "feasibility_status"
-            ),
-            "Code": violation.get("code"),
-            "Message": violation.get("message"),
-        }
-        for candidate in evaluated
-        for violation in candidate.get("result", {}).get(
-            "constraint_violations", []
-        )
-    ]
-    if violations:
+    if not violation_summary.empty:
         st.dataframe(
-            pd.DataFrame(violations), hide_index=True, width="stretch"
+            violation_summary, hide_index=True, width="stretch"
         )
     st.stop()
 
@@ -673,10 +744,16 @@ else:
         "configuration_fingerprint": run.get(
             "configuration_fingerprint"
         ),
-        "objective": run.get("objective"),
+        "config_version": configuration.get("config_version"),
+        "planning_horizon": planning_horizon,
+        "generation_method": "bounded_deterministic_search",
+        "objective": planning.get("objective", run.get("objective")),
+        "candidate_limit": planning.get("candidate_limit"),
+        "max_action_depth": planning.get("max_action_depth"),
+        "allowed_actions": planning.get("allowed_actions"),
         "engine_version": run.get("engine_version"),
         "rule_set_version": run.get("rule_set_version"),
         "result_package": str(package["root"]),
     })
-    with st.expander("Validated V1 configuration"):
-        st.json(package["configuration"])
+    with st.expander("Validated V1.1 configuration"):
+        st.json(configuration)

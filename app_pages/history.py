@@ -9,7 +9,7 @@ import streamlit as st
 
 from components.console import (
     MetricCard,
-    render_finding,
+    render_finding_signal,
     render_hero,
     render_metric_row,
     render_panel,
@@ -59,7 +59,7 @@ def _recorded_findings(catalogue, product: dict[str, Any]):
 def _render_comparability(product: dict[str, Any]) -> None:
     counts = history_fitness_counts(product)
     status = str(product.get("execution_status", "unknown"))
-    badge_color = "orange" if "limitation" in status else "green"
+    badge_color = "yellow" if "limitation" in status else "green"
     contract = product.get("comparability_contract", [])
 
     with render_panel(
@@ -76,12 +76,12 @@ def _render_comparability(product: dict[str, Any]) -> None:
             "Saved comparability contract: "
             + (", ".join(map(str, contract)) if contract else "Not recorded")
         )
-        render_metric_row([
-            ("Fitness assessments", counts["assessments"]),
-            ("With caveats", counts["with_caveats"]),
-            ("Recorded caveats", counts["caveats"]),
-            ("Blocking conditions", counts["blocking_conditions"]),
-        ])
+        st.markdown(
+            f"**{counts['assessments']} fitness assessments** · "
+            f"{counts['with_caveats']} with caveats · "
+            f"{counts['caveats']} recorded caveats · "
+            f"{counts['blocking_conditions']} blockers"
+        )
         if counts["caveats"] or counts["blocking_conditions"]:
             st.warning(
                 "This history product completed with saved evidence limitations. "
@@ -136,7 +136,7 @@ def _render_recorded_findings(catalogue, product: dict[str, Any]) -> None:
         st.info("No historical findings were recorded for this product.")
     else:
         for finding in findings:
-            render_finding(finding)
+            render_finding_signal(finding)
 
 
 def _render_comparison(catalogue, comparisons: list[dict[str, Any]]) -> None:
@@ -322,8 +322,8 @@ def _render_trend(catalogue, trends: list[dict[str, Any]]) -> None:
             )
             st.caption(
                 "Lines start again after a continuity break. Points show the "
-                "reported RAG. Select a project to inspect it; double-click "
-                "to clear the chart selection."
+                "reported RAG. Select a project, then open the project "
+                "inspection below for its recorded facts."
             )
 
             project_rows = (
@@ -343,38 +343,53 @@ def _render_trend(catalogue, trends: list[dict[str, Any]]) -> None:
             if st.session_state.get(project_key) not in project_labels:
                 st.session_state[project_key] = next(iter(project_labels), None)
 
-            selected_project = st.selectbox(
-                "Inspect project",
-                list(project_labels),
-                format_func=project_labels.get,
-                key=project_key,
+            inspection = st.expander(
+                "Inspect one project",
+                icon=":material/account_tree:",
+                on_change="rerun",
             )
-            facts = delivery_project_facts(visible, selected_project)
-            if facts:
-                with render_panel(
-                    f"{facts['project_name']} · {facts['project_id']}",
-                    "Recorded movement within the latest continuous segment.",
-                    icon=":material/account_tree:",
-                ):
-                    render_metric_row([
-                        (
-                            "Net forecast movement",
-                            f"{facts['net_movement_days']:+d} days",
-                        ),
-                        ("Slippage transitions", facts["slippage_transitions"]),
-                        (
-                            "Latest forecast finish",
-                            facts["latest_finish"].strftime("%d %b %Y"),
-                        ),
-                        ("Reported RAG", facts["status_path"]),
-                    ])
-                    if facts["unavailable_transitions"]:
-                        st.warning(
-                            f"{facts['unavailable_transitions']} adjacent "
-                            "transition(s) were unavailable; the chart does "
-                            "not bridge those gaps.",
-                            icon=":material/link_off:",
+            if inspection.open:
+                with inspection:
+                    selected_project = st.selectbox(
+                        "Project",
+                        list(project_labels),
+                        format_func=project_labels.get,
+                        key=project_key,
+                    )
+                    facts = delivery_project_facts(
+                        visible, selected_project
+                    )
+                    if facts:
+                        st.markdown(
+                            f"**{facts['project_name']} · "
+                            f"{facts['project_id']}**"
                         )
+                        st.caption(
+                            "Recorded movement within the latest continuous "
+                            "segment."
+                        )
+                        render_metric_row([
+                            (
+                                "Net forecast movement",
+                                f"{facts['net_movement_days']:+d} days",
+                            ),
+                            (
+                                "Slippage transitions",
+                                facts["slippage_transitions"],
+                            ),
+                            (
+                                "Latest forecast finish",
+                                facts["latest_finish"].strftime("%d %b %Y"),
+                            ),
+                            ("Reported RAG", facts["status_path"]),
+                        ])
+                        if facts["unavailable_transitions"]:
+                            st.warning(
+                                f"{facts['unavailable_transitions']} adjacent "
+                                "transition(s) were unavailable; the chart "
+                                "does not bridge those gaps.",
+                                icon=":material/link_off:",
+                            )
 
     if excluded:
         st.warning(
@@ -409,10 +424,9 @@ _, catalogue, client_id, _ = console_context()
 
 render_hero(
     "History",
-    "History",
-    "A change-over-time viewpoint over comparable observations and recurring "
-    "delivery behaviour. Use it to distinguish observed movement from a "
-    "consultant's interpretation of its significance.",
+    "What changed—and what keeps happening?",
+    "Compare governed observations and recurring delivery behaviour while "
+    "keeping observed movement separate from its interpretation.",
     icon=":material/timeline:",
 )
 

@@ -27,6 +27,9 @@ def write_snapshot(tmp_path, client_id, snapshot_id, observation_date):
     datasets = {
         "projects": f"{client_id}/snapshots/{snapshot_id}/projects.csv",
         "tasks": f"{client_id}/snapshots/{snapshot_id}/tasks.csv",
+        "resources": f"{client_id}/snapshots/{snapshot_id}/resources.csv",
+        "assignments": f"{client_id}/snapshots/{snapshot_id}/assignments.csv",
+        "dependencies": f"{client_id}/snapshots/{snapshot_id}/dependencies.csv",
     }
     _write_json(snapshot_root / "snapshot.json", {
         "format_version": "1.0",
@@ -294,6 +297,23 @@ def write_snapshot(tmp_path, client_id, snapshot_id, observation_date):
         "ForecastFinishDate,IsMilestone\n"
         "T1,P1,Design,2026-01-01,2026-01-31,false\n"
         "T2,P2,Build,2026-02-01,2026-04-15,false\n",
+        encoding="utf-8",
+    )
+    (processed / "resources.csv").write_text(
+        "ResourceID,ResourceName,Role,Team,Capacity\n"
+        "R1,Planner,Planner,Controls,100\n",
+        encoding="utf-8",
+    )
+    (processed / "assignments.csv").write_text(
+        "AssignmentID,TaskID,ResourceID,Allocation,AssignmentStartDate,"
+        "AssignmentFinishDate\n"
+        "A1,T1,R1,60,2026-01-01,2026-01-31\n"
+        "A2,T2,R1,70,2026-02-01,2026-04-15\n",
+        encoding="utf-8",
+    )
+    (processed / "dependencies.csv").write_text(
+        "DependencyID,PredecessorTaskID,SuccessorTaskID,DependencyType,Lag\n"
+        "D1,T1,T2,FS,0\n",
         encoding="utf-8",
     )
     health = curated / "overview" / "project_health.csv"
@@ -607,20 +627,28 @@ def test_workspace_renders_governed_snapshot(tmp_path, monkeypatch):
         metric.label == "Findings" and metric.value == "1"
         for metric in app.metric
     )
+    assert len(app.metric) == 4
+    assert any(
+        metric.label == "Evidence fitness" and metric.value == "7/7 fit"
+        for metric in app.metric
+    )
     assert any(
         item.value == "Portfolio attention map" for item in app.subheader
     )
-    assert any(item.value == "Workspace" for item in app.title)
+    assert any(
+        item.value == "From evidence to better decisions"
+        for item in app.title
+    )
     assert any(
         "Observation" in item.value and "2026-09-01" in item.value
-        for item in app.markdown
+        for item in app.caption
     )
     assert any(
         "Snapshot" in item.value and snapshot_id in item.value
-        for item in app.markdown
+        for item in app.caption
     )
     assert any(
-        "observation-wide executive viewpoint" in item.value
+        "Balance portfolio position" in item.value
         for item in app.markdown
     )
 
@@ -657,32 +685,32 @@ def test_history_renders_governed_comparison_and_limitations(
     )
     pages = {
         "app_pages/projects_findings.py": (
-            "Projects & findings",
-            "project-comparison viewpoint",
+            "Where is attention concentrated?",
+            "Compare cross-domain project conditions",
         ),
         "app_pages/schedule_plan.py": (
-            "Schedule & plan",
-            "time-and-sequencing viewpoint",
+            "Where is the plan exposed?",
+            "Review deterministic schedule conditions",
         ),
         "app_pages/resources.py": (
-            "Resources",
-            "capacity-and-assignment viewpoint",
+            "Where is capacity under pressure?",
+            "Review allocation pressure",
         ),
         "app_pages/structure_patterns.py": (
-            "Structure & patterns",
-            "structural and peer-pattern viewpoint",
+            "Where is delivery coupled?",
+            "Review governed dependency structure",
         ),
         "app_pages/history.py": (
-            "History",
-            "change-over-time viewpoint",
+            "What changed—and what keeps happening?",
+            "Compare governed observations",
         ),
         "app_pages/scenario_planning.py": (
-            "Scenario planning",
-            "controlled what-if viewpoint",
+            "What could improve the plan?",
+            "Compare bounded, feasible schedule options",
         ),
         "app_pages/run_lab.py": (
-            "Run the lab",
-            "operational viewpoint",
+            "Turn evidence into a governed observation",
+            "Move from inspection to assessment",
         ),
     }
     for page, (title, description) in pages.items():
@@ -720,7 +748,7 @@ def test_sidebar_orders_identity_navigation_and_data_scope(
         "Scenario planning",
         "Run the lab",
     ]
-    assert (sidebar[12].type, sidebar[12].value) == (
+    assert (sidebar[11].type, sidebar[11].value) == (
         "subheader",
         "Data scope",
     )
@@ -737,7 +765,10 @@ def test_combined_navigation_switches_workspace_and_finding_views(
         key="workspace_review_view"
     ).set_value("Evidence & fitness").run()
     assert not app.exception
-    assert any(item.value == "Workspace" for item in app.title)
+    assert any(
+        item.value == "Can this evidence support the analysis?"
+        for item in app.title
+    )
     assert any(
         item.value == "Fitness by capability" for item in app.subheader
     )
@@ -748,7 +779,7 @@ def test_combined_navigation_switches_workspace_and_finding_views(
     ).set_value("All findings").run()
     assert not app.exception
     assert any(
-        item.value == "Projects & findings" for item in app.title
+        item.value == "What is happening?" for item in app.title
     )
     assert any(
         metric.label == "Total findings" and metric.value == "1"
@@ -823,6 +854,134 @@ def test_plan_filters_portfolio_and_drills_into_project(
     assert any(
         metric.label == "Tasks plotted" and metric.value == "1"
         for metric in app.metric
+    )
+
+
+def test_scenario_planning_uses_observed_horizon_defaults(
+    tmp_path, monkeypatch,
+):
+    from services import scenario_planning
+
+    monkeypatch.setattr(
+        scenario_planning,
+        "schedule_platform_ready",
+        lambda settings: (True, "test SchedulePlatform"),
+    )
+    snapshot_id = "snapshot-scenarios"
+    write_snapshot(tmp_path, "client-001", snapshot_id, "2026-09-01")
+    app = app_for(tmp_path, monkeypatch)
+
+    app.switch_page("app_pages/scenario_planning.py").run()
+
+    assert not app.exception
+    assert app.date_input(
+        key=f"scenario_horizon_start_{snapshot_id}"
+    ).value.isoformat() == "2026-01-01"
+    assert app.date_input(
+        key=f"scenario_horizon_end_{snapshot_id}"
+    ).value.isoformat() == "2026-04-30"
+    assert any(
+        "The observed baseline spans 01 Jan 2026 to 30 Apr 2026"
+        in item.value
+        for item in app.caption
+    )
+    assert any(
+        "Execution backend: bounded deterministic search" in item.value
+        for item in app.caption
+    )
+    assert not any(
+        "CP-SAT" in item.label
+        for item in [*app.selectbox, *app.segmented_control]
+    )
+
+
+def test_scenario_planning_presents_v1_1_contract_and_horizon_failure(
+    tmp_path, monkeypatch,
+):
+    from services import scenario_planning
+
+    snapshot_id = "snapshot-provenance"
+    write_snapshot(tmp_path, "client-001", snapshot_id, "2026-09-01")
+    monkeypatch.setattr(
+        scenario_planning,
+        "schedule_platform_ready",
+        lambda settings: (True, "schedule-platform 1.1-test"),
+    )
+    package = {
+        "root": tmp_path / "scenario-output" / "run-contract",
+        "run": {
+            "run_id": "run-contract",
+            "client_id": "client-001",
+            "snapshot_id": snapshot_id,
+            "generation_id": "generation-contract",
+            "completed_at": "2026-10-16T09:00:00+00:00",
+            "configuration_fingerprint": "sha256:contract-fingerprint",
+            "engine_version": "engine-1.1.0",
+            "rule_set_version": "rules-2026.10",
+        },
+        "configuration": {
+            "config_version": "1.1",
+            "planning": {
+                "objective": "protect_priority",
+                "planning_horizon": {
+                    "start_date": "2026-01-01",
+                    "end_date": "2026-12-31",
+                },
+                "candidate_limit": 250,
+                "max_action_depth": 5,
+                "allowed_actions": ["move_task_dates"],
+            },
+        },
+        "generation": {
+            "status": "no_feasible_scenario",
+            "selected_candidates": [],
+            "candidates_evaluated": 1,
+            "states_deduplicated": 0,
+            "search_truncated": False,
+            "warnings": [],
+            "baseline": {
+                "status": "fit",
+                "input_fitness": {"conditions": []},
+                "observed_conditions": [],
+                "engine_version": "engine-1.1.0",
+                "rule_set_version": "rules-2026.10",
+            },
+            "evaluated_candidates": [{
+                "proposal": {"proposal_id": "proposal-late"},
+                "result": {
+                    "feasibility_status": "infeasible",
+                    "constraint_violations": [{
+                        "code": "PLANNING-HORIZON-EXCEEDED",
+                        "message": "The moved task finishes after 2026-12-31.",
+                    }],
+                },
+            }],
+        },
+    }
+    monkeypatch.setattr(
+        scenario_planning,
+        "list_generation_packages",
+        lambda settings, client_id, selected_snapshot_id: [package],
+    )
+    app = app_for(tmp_path, monkeypatch)
+
+    app.switch_page("app_pages/scenario_planning.py").run()
+
+    assert not app.exception
+    metrics = {metric.label: metric.value for metric in app.metric}
+    assert metrics["Config version"] == "1.1"
+    assert metrics["Planning horizon"] == "2026-01-01 → 2026-12-31"
+    assert metrics["Generation method"] == "Bounded deterministic search"
+    assert metrics["Candidate limit"] == "250"
+    assert metrics["Action depth"] == "5"
+    assert metrics["Engine"] == "engine-1.1.0"
+    assert metrics["Rules"] == "rules-2026.10"
+    assert any(
+        "sha256:contract-fingerprint" in item.value for item in app.caption
+    )
+    assert any(
+        "exceeded the configured planning horizon" in item.value
+        for item in app.error
     )
 
 
@@ -1046,4 +1205,31 @@ def test_raw_only_client_can_open_inspection(tmp_path, monkeypatch):
     assert any(
         "Run ID records technical processing" in item.value
         for item in app.caption
+    )
+
+
+def test_run_lab_opens_first_actionable_stage_and_allows_review(
+    tmp_path, monkeypatch,
+):
+    write_snapshot(
+        tmp_path, "client-001", "snapshot-test", "2026-09-01"
+    )
+    app = app_for(tmp_path, monkeypatch)
+
+    app.switch_page("app_pages/run_lab.py").run()
+
+    assert not app.exception
+    assert app.segmented_control(key="run_lab_stage").value == "3 · Diagnose"
+    assert any(button.label == "Run diagnosis" for button in app.button)
+    assert not any(
+        button.label == "Inspect raw evidence" for button in app.button
+    )
+
+    app.segmented_control(key="run_lab_stage").set_value(
+        "1 · Inspect"
+    ).run()
+
+    assert not app.exception
+    assert any(
+        button.label == "Inspect raw evidence" for button in app.button
     )

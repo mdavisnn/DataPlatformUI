@@ -8,7 +8,9 @@ from services.demo import (
     OBSERVATION_DATE,
     RUN_ID,
     SNAPSHOT_ID,
+    SYNTHETIC_CLIENT_IDS,
     main,
+    reset_synthetic_demo,
 )
 
 
@@ -112,3 +114,65 @@ def test_demo_stops_when_inspection_fails(tmp_path):
     assert result == 1
     assess.assert_not_called()
     diagnose.assert_not_called()
+
+
+def test_demo_reset_removes_only_fixed_synthetic_clients(
+    tmp_path, monkeypatch,
+):
+    platform = tmp_path / "DataPlatform"
+    schedule = tmp_path / "SchedulePlatform"
+    monkeypatch.setenv("SCHEDULE_PLATFORM_PATH", str(schedule))
+    settings = Settings(platform)
+
+    for client_id in SYNTHETIC_CLIENT_IDS:
+        for area in ("raw", "processed", "curated", "metadata"):
+            root = settings.storage_root / area / client_id
+            root.mkdir(parents=True)
+            (root / "synthetic.txt").write_text("demo", encoding="utf-8")
+        (settings.storage_root / "metadata" / client_id / "client.json").write_text(
+            json.dumps({"client_id": client_id}), encoding="utf-8"
+        )
+        run_root = settings.schedule_output_root / client_id / "runs" / "run-1"
+        run_root.mkdir(parents=True)
+        (run_root / "configuration.json").write_text(
+            json.dumps({"input": {"client_id": client_id}}),
+            encoding="utf-8",
+        )
+
+    protected = settings.storage_root / "metadata" / "client-001"
+    protected.mkdir(parents=True)
+    (protected / "client.json").write_text(
+        json.dumps({"client_id": "client-001"}), encoding="utf-8"
+    )
+
+    removed = reset_synthetic_demo(settings)
+
+    assert removed
+    for client_id in SYNTHETIC_CLIENT_IDS:
+        assert not (
+            settings.storage_root / "metadata" / client_id
+        ).exists()
+        assert not (settings.schedule_output_root / client_id).exists()
+    assert protected.is_dir()
+
+
+def test_demo_reset_refuses_mismatched_scenario_identity(
+    tmp_path, monkeypatch,
+):
+    platform = tmp_path / "DataPlatform"
+    schedule = tmp_path / "SchedulePlatform"
+    monkeypatch.setenv("SCHEDULE_PLATFORM_PATH", str(schedule))
+    settings = Settings(platform)
+    run_root = (
+        settings.schedule_output_root / CLIENT_ID / "runs" / "unexpected"
+    )
+    run_root.mkdir(parents=True)
+    (run_root / "configuration.json").write_text(
+        json.dumps({"input": {"client_id": "client-001"}}),
+        encoding="utf-8",
+    )
+
+    result = main(settings, reset=True)
+
+    assert result == 1
+    assert run_root.is_dir()

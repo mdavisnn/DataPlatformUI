@@ -8,6 +8,10 @@ import pandas as pd
 import streamlit as st
 
 from components.console import MetricCard, render_hero, render_metric_row, render_panel
+from components.diagnostic_charts import (
+    domain_distribution_chart,
+    severity_distribution_chart,
+)
 from components.finding_review import render_finding_detail
 from services.catalog import findings_frame
 from services.console_context import console_context
@@ -122,46 +126,6 @@ if not selected:
     )
     st.stop()
 
-selected_frame = findings_frame({"findings": selected})
-summary_columns = st.columns(2)
-with summary_columns[0]:
-    with render_panel(
-        "Findings by severity",
-        "Counts for the current filtered view.",
-        icon=":material/priority_high:",
-    ):
-        severity_counts = (
-            selected_frame["Severity"]
-            .value_counts()
-            .reindex(["High", "Medium", "Low"], fill_value=0)
-            .rename_axis("Severity")
-            .reset_index(name="Findings")
-        )
-        st.bar_chart(
-            severity_counts,
-            x="Severity",
-            y="Findings",
-            height=240,
-        )
-with summary_columns[1]:
-    with render_panel(
-        "Findings by domain",
-        "Counts for the current filtered view.",
-        icon=":material/category:",
-    ):
-        domain_counts = (
-            selected_frame.groupby("Domain")
-            .size()
-            .reset_index(name="Findings")
-            .sort_values("Findings", ascending=False)
-        )
-        st.bar_chart(
-            domain_counts,
-            x="Domain",
-            y="Findings",
-            height=240,
-        )
-
 st.subheader("Findings and evidence")
 st.caption(
     "Select one Finding to inspect its deterministic rule context and the "
@@ -205,3 +169,46 @@ with detail_column:
             selected[selected_index],
             bundle.get("fitness", {}),
         )
+
+distribution = st.expander(
+    "Finding distribution",
+    icon=":material/bar_chart:",
+    on_change="rerun",
+)
+if distribution.open:
+    with distribution:
+        selected_frame = findings_frame({"findings": selected})
+        summary_columns = st.columns(2)
+        with summary_columns[0]:
+            with render_panel(
+                "Findings by severity",
+                "Counts for the current filtered view.",
+                icon=":material/priority_high:",
+            ):
+                severity_counts = (
+                    selected_frame["Severity"]
+                    .value_counts()
+                    .reindex(["High", "Medium", "Low"], fill_value=0)
+                    .rename_axis("Severity")
+                    .reset_index(name="Findings")
+                )
+                st.altair_chart(
+                    severity_distribution_chart(severity_counts),
+                    width="stretch",
+                )
+        with summary_columns[1]:
+            with render_panel(
+                "Findings by domain",
+                "Counts for the current filtered view.",
+                icon=":material/category:",
+            ):
+                domain_counts = (
+                    selected_frame.groupby("Domain")
+                    .size()
+                    .reset_index(name="Findings")
+                    .sort_values("Findings", ascending=False)
+                )
+                st.altair_chart(
+                    domain_distribution_chart(domain_counts),
+                    width="stretch",
+                )

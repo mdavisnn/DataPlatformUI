@@ -13,7 +13,7 @@ STATUS_DOMAIN = [
     "Within threshold",
     "Not assessable",
 ]
-STATUS_RANGE = ["#c2413b", "#16805b", "#64748b"]
+STATUS_RANGE = ["#dc2626", "#16805b", "#64748b"]
 
 
 def assessment_matrix_chart(frame: pd.DataFrame) -> alt.Chart:

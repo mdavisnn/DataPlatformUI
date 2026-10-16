@@ -8,12 +8,13 @@ import os
 from pathlib import Path
 import re
 import subprocess
-import sys
 import tempfile
 from typing import Any, Iterable
 from uuid import uuid4
 
 import pandas as pd
+from jsonschema import Draft202012Validator, FormatChecker
+from jsonschema.exceptions import SchemaError
 
 from config.settings import Settings
 from services.catalog import validate_client_id
@@ -29,10 +30,131 @@ _ACTIONS = {"move_task_dates", "reassign_resource"}
 _PROTECTIONS = {"protected", "flexible"}
 _TARGET_TYPES = {"project_finish", "task_finish"}
 _TARGET_TREATMENTS = {"report_only", "hard_constraint"}
+_CONFIG_VERSION = "1.1"
+_CONFIG_SCHEMA_NAME = "analysis_config_v1.schema.json"
+_GENERATION_RESULT_SCHEMA_NAME = "generation_result_v1.schema.json"
+_CP_SAT_PROVENANCE_FIELDS = {
+    "generation_backend",
+    "solver_name",
+    "solver_version",
+    "solver_settings",
+    "validation_succeeded",
+}
+_SCHEDULE_DATE_COLUMNS = {
+    "projects": ("ForecastStartDate", "ForecastFinishDate"),
+    "tasks": ("ForecastStartDate", "ForecastFinishDate"),
+    "assignments": ("AssignmentStartDate", "AssignmentFinishDate"),
+}
 
 
 class ScenarioPlanningError(RuntimeError):
     """Raised when scenario configuration or execution cannot be completed."""
+
+
+def _configuration_schema_path(settings: Settings) -> Path:
+    return (
+        settings.schedule_platform_path
+        / "src"
+        / "schedule_platform"
+        / "schemas"
+        / _CONFIG_SCHEMA_NAME
+    )
+
+
+def _configuration_schema(settings: Settings) -> dict[str, Any]:
+    path = _configuration_schema_path(settings)
+    try:
+        schema = json.loads(path.read_text(encoding="utf-8"))
+        Draft202012Validator.check_schema(schema)
+    except (OSError, UnicodeError, json.JSONDecodeError, SchemaError) as error:
+        raise ScenarioPlanningError(
+            "SchedulePlatform configuration schema is unavailable or "
+            f"invalid: {path}"
+        ) from error
+    configured_version = (
+        schema.get("properties", {})
+        .get("config_version", {})
+        .get("const")
+    )
+    if configured_version != _CONFIG_VERSION:
+        raise ScenarioPlanningError(
+            "DataPlatformUI requires SchedulePlatform configuration "
+            f"{_CONFIG_VERSION}; the configured checkout requires "
+            f"{configured_version or 'an unknown version'}."
+        )
+    return schema
+
+
+def _json_path(parts: Iterable[str | int]) -> str:
+    path = "$"
+    for part in parts:
+        path += f"[{part}]" if isinstance(part, int) else f".{part}"
+    return path
+
+
+def _validate_configuration_document(
+    settings: Settings,
+    document: dict[str, Any],
+) -> None:
+    validator = Draft202012Validator(
+        _configuration_schema(settings),
+        format_checker=FormatChecker(),
+    )
+    errors = sorted(
+        validator.iter_errors(document),
+        key=lambda error: tuple(str(part) for part in error.absolute_path),
+    )
+    if errors:
+        error = errors[0]
+        raise ScenarioPlanningError(
+            "SchedulePlatform configuration is invalid at "
+            f"{_json_path(error.absolute_path)}: {error.message}"
+        )
+
+
+def _schedule_platform_environment(settings: Settings) -> dict[str, str]:
+    environment = os.environ.copy()
+    source_root = settings.schedule_platform_path / "src"
+    existing_pythonpath = environment.get("PYTHONPATH")
+    environment["PYTHONPATH"] = os.pathsep.join(
+        value
+        for value in (str(source_root), existing_pythonpath)
+        if value
+    )
+    return environment
+
+
+def _run_schedule_platform_command(
+    settings: Settings,
+    arguments: list[str],
+    *,
+    timeout: int = 30,
+) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [str(settings.schedule_platform_python), *arguments],
+        cwd=settings.schedule_platform_path,
+        env=_schedule_platform_environment(settings),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=timeout,
+        check=False,
+    )
+
+
+def _schema_property_names(document: Any) -> set[str]:
+    if isinstance(document, dict):
+        names = set(document.get("properties", {}))
+        for value in document.values():
+            names.update(_schema_property_names(value))
+        return names
+    if isinstance(document, list):
+        names: set[str] = set()
+        for value in document:
+            names.update(_schema_property_names(value))
+        return names
+    return set()
 
 
 def schedule_platform_ready(settings: Settings) -> tuple[bool, str]:
@@ -45,8 +167,120 @@ def schedule_platform_ready(settings: Settings) -> tuple[bool, str]:
         )
     schema_directory = settings.platform_path / "schemas"
     if not schema_directory.is_dir():
-        return False, f"DataPlatform schema directory is unavailable: {schema_directory}"
-    return True, str(path)
+        return False, (
+            "DataPlatform schema directory is unavailable: "
+            f"{schema_directory}"
+        )
+    try:
+        _configuration_schema(settings)
+    except ScenarioPlanningError as error:
+        return False, str(error)
+
+    interpreter = settings.schedule_platform_python
+    if not interpreter.is_file():
+        return False, (
+            "The SchedulePlatform Python interpreter is unavailable at "
+            f"{interpreter}. Configure SCHEDULE_PLATFORM_PYTHON or create "
+            "SchedulePlatform/.venv and install SchedulePlatform there."
+        )
+    command = [
+        "-m",
+        "schedule_platform.cli",
+        "--version",
+    ]
+    try:
+        completed = _run_schedule_platform_command(settings, command)
+    except (OSError, subprocess.TimeoutExpired) as error:
+        return False, (
+            "SchedulePlatform readiness could not start its configured "
+            f"interpreter ({interpreter}): {error}. Configure "
+            "SCHEDULE_PLATFORM_PYTHON to an environment with "
+            "SchedulePlatform and its dependencies installed."
+        )
+    output = "\n".join(
+        part for part in (completed.stdout, completed.stderr) if part
+    ).strip()
+    if completed.returncode != 0:
+        detail = output or "the version command returned no diagnostic output"
+        return False, (
+            "SchedulePlatform readiness failed using "
+            f"{interpreter}. Install SchedulePlatform and its dependencies "
+            f"in that environment, or set SCHEDULE_PLATFORM_PYTHON. {detail}"
+        )
+    version = output.splitlines()[-1] if output else "version available"
+    return True, f"{version} via {interpreter}"
+
+
+def cp_sat_integration_gate(settings: Settings) -> tuple[bool, str]:
+    """Require public CLI and persisted contracts before exposing CP-SAT."""
+
+    missing: list[str] = []
+    try:
+        schema = _configuration_schema(settings)
+    except ScenarioPlanningError as error:
+        return False, f"CP-SAT remains gated: {error}"
+
+    planning_schema = schema.get("$defs", {}).get("planning", {})
+    planning_properties = planning_schema.get("properties", {})
+    backend_schema = planning_properties.get(
+        "generation_backend",
+        planning_properties.get("backend", {}),
+    )
+    backend_values = {
+        str(value).lower().replace("-", "_")
+        for value in backend_schema.get("enum", [])
+    }
+    if "cp_sat" not in backend_values:
+        missing.append("a published V1.1 CP-SAT configuration selector")
+
+    try:
+        completed = _run_schedule_platform_command(
+            settings,
+            ["-m", "schedule_platform.cli", "generate", "--help"],
+        )
+    except (OSError, subprocess.TimeoutExpired) as error:
+        missing.append(f"a working CLI capability probe ({error})")
+    else:
+        help_text = "\n".join(
+            part for part in (completed.stdout, completed.stderr) if part
+        ).lower()
+        if (
+            completed.returncode != 0
+            or "--backend" not in help_text
+            or "cp_sat" not in help_text.replace("-", "_")
+        ):
+            missing.append("a public `generate --backend cp-sat` CLI contract")
+
+    result_schema_path = (
+        settings.schedule_platform_path
+        / "src"
+        / "schedule_platform"
+        / "schemas"
+        / _GENERATION_RESULT_SCHEMA_NAME
+    )
+    try:
+        result_schema = json.loads(result_schema_path.read_text(encoding="utf-8"))
+        Draft202012Validator.check_schema(result_schema)
+    except (OSError, UnicodeError, json.JSONDecodeError, SchemaError):
+        missing.append(
+            "a published generation-result schema with solver provenance"
+        )
+    else:
+        absent = _CP_SAT_PROVENANCE_FIELDS - _schema_property_names(
+            result_schema
+        )
+        if absent:
+            missing.append(
+                "persisted CP-SAT provenance fields: "
+                + ", ".join(sorted(absent))
+            )
+
+    if missing:
+        return False, "CP-SAT remains gated pending " + "; ".join(missing) + "."
+    return True, (
+        "SchedulePlatform publishes the CP-SAT configuration, CLI and "
+        "persisted-provenance contracts required for integration testing."
+    )
 
 
 def default_project_policies(projects: pd.DataFrame) -> pd.DataFrame:
@@ -90,6 +324,47 @@ def empty_targets() -> pd.DataFrame:
         "TargetDate": pd.Series(dtype="object"),
         "Treatment": pd.Series(dtype="string"),
     })
+
+
+def observed_schedule_bounds(
+    projects: pd.DataFrame,
+    tasks: pd.DataFrame,
+    assignments: pd.DataFrame,
+) -> tuple[date, date]:
+    """Return the earliest and latest available canonical schedule dates."""
+
+    frames = {
+        "projects": projects,
+        "tasks": tasks,
+        "assignments": assignments,
+    }
+    observed_dates: list[date] = []
+    for dataset, columns in _SCHEDULE_DATE_COLUMNS.items():
+        frame = frames[dataset]
+        missing = sorted(set(columns) - set(frame.columns))
+        if missing:
+            raise ScenarioPlanningError(
+                f"Canonical {dataset} are missing required date fields: {missing}"
+            )
+        for column in columns:
+            values = frame[column]
+            present = values.loc[
+                values.notna() & values.astype(str).str.strip().ne("")
+            ]
+            if present.empty:
+                continue
+            parsed = pd.to_datetime(present, errors="coerce")
+            if parsed.isna().any():
+                raise ScenarioPlanningError(
+                    f"Canonical {dataset}.{column} contains an invalid date"
+                )
+            observed_dates.extend(parsed.dt.date.tolist())
+    if not observed_dates:
+        raise ScenarioPlanningError(
+            "The canonical observation has no schedule dates from which to "
+            "establish a planning horizon."
+        )
+    return min(observed_dates), max(observed_dates)
 
 
 def _text(value: Any, field: str) -> str:
@@ -140,6 +415,10 @@ def build_configuration_document(
     client_id: str,
     snapshot_id: str,
     objective: str,
+    planning_horizon_start: Any,
+    planning_horizon_end: Any,
+    observed_schedule_start: Any,
+    observed_schedule_end: Any,
     scenario_count: int,
     candidate_limit: int,
     max_action_depth: int,
@@ -154,6 +433,25 @@ def build_configuration_document(
         raise ScenarioPlanningError("snapshot_id is not a safe identifier")
     if objective not in _OBJECTIVES:
         raise ScenarioPlanningError("Unsupported planning objective")
+    horizon_start = _iso_date(
+        planning_horizon_start, "Planning horizon start"
+    )
+    horizon_end = _iso_date(planning_horizon_end, "Planning horizon end")
+    observed_start = _iso_date(
+        observed_schedule_start, "Observed schedule start"
+    )
+    observed_end = _iso_date(
+        observed_schedule_end, "Observed schedule end"
+    )
+    if horizon_end < horizon_start:
+        raise ScenarioPlanningError(
+            "Planning horizon end must be on or after its start"
+        )
+    if horizon_start > observed_start or horizon_end < observed_end:
+        raise ScenarioPlanningError(
+            "Planning horizon must contain the observed schedule from "
+            f"{observed_start} to {observed_end}"
+        )
     scenario_count = _whole_number(
         scenario_count, "Scenario count", minimum=1
     )
@@ -258,8 +556,8 @@ def build_configuration_document(
             "treatment": treatment,
         })
 
-    return {
-        "config_version": "1.0",
+    document = {
+        "config_version": _CONFIG_VERSION,
         "input": {
             "type": "processed",
             "root": str(settings.storage_root),
@@ -269,6 +567,10 @@ def build_configuration_document(
         },
         "planning": {
             "objective": objective,
+            "planning_horizon": {
+                "start_date": horizon_start,
+                "end_date": horizon_end,
+            },
             "scenario_count": scenario_count,
             "candidate_limit": candidate_limit,
             "max_action_depth": max_action_depth,
@@ -289,6 +591,8 @@ def build_configuration_document(
         },
         "output": {"root": str(settings.schedule_output_root)},
     }
+    _validate_configuration_document(settings, document)
+    return document
 
 
 def _new_run_id() -> str:
@@ -331,10 +635,12 @@ def load_generation_package(
         or Path(configuration_name).name != configuration_name
     ):
         raise ScenarioPlanningError("Scenario run has unsafe artifact references")
+    configuration = _read_json(root / configuration_name)
+    _validate_configuration_document(settings, configuration)
     return {
         "root": root,
         "run": run,
-        "configuration": _read_json(root / configuration_name),
+        "configuration": configuration,
         "generation": _read_json(root / generation_name),
     }
 
@@ -381,18 +687,12 @@ def run_scenario_generation(
     ready, message = schedule_platform_ready(settings)
     if not ready:
         raise ScenarioPlanningError(message)
+    _validate_configuration_document(settings, configuration)
     active_run_id = run_id or _new_run_id()
     if not _SAFE_IDENTIFIER.fullmatch(active_run_id):
         raise ScenarioPlanningError("run_id is not a safe identifier")
 
-    environment = os.environ.copy()
-    source_root = settings.schedule_platform_path / "src"
-    existing_pythonpath = environment.get("PYTHONPATH")
-    environment["PYTHONPATH"] = os.pathsep.join(
-        value
-        for value in (str(source_root), existing_pythonpath)
-        if value
-    )
+    environment = _schedule_platform_environment(settings)
     with tempfile.TemporaryDirectory(prefix="schedule-platform-ui-") as temporary:
         config_path = Path(temporary) / "analysis-config.json"
         config_path.write_text(
@@ -405,7 +705,7 @@ def run_scenario_generation(
             encoding="utf-8",
         )
         command = [
-            sys.executable,
+            str(settings.schedule_platform_python),
             "-m",
             "schedule_platform.cli",
             "generate",
@@ -452,6 +752,28 @@ def run_scenario_generation(
     package = load_generation_package(settings, run_root)
     package["command_output"] = output
     return package
+
+
+def constraint_violation_frame(
+    generation: dict[str, Any],
+) -> pd.DataFrame:
+    """Return candidate constraint evidence in a presentation-ready table."""
+    columns = ["Proposal", "Feasibility", "Code", "Message"]
+    rows = [
+        {
+            "Proposal": candidate.get("proposal", {}).get("proposal_id"),
+            "Feasibility": candidate.get("result", {}).get(
+                "feasibility_status"
+            ),
+            "Code": violation.get("code"),
+            "Message": violation.get("message"),
+        }
+        for candidate in generation.get("evaluated_candidates", [])
+        for violation in candidate.get("result", {}).get(
+            "constraint_violations", []
+        )
+    ]
+    return pd.DataFrame(rows, columns=columns)
 
 
 def candidate_summary_frame(generation: dict[str, Any]) -> pd.DataFrame:

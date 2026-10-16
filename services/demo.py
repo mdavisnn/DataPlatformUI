@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import shutil
 from datetime import date
@@ -27,6 +28,8 @@ DATASET_FILENAMES = (
     "dependencies.csv",
 )
 SOURCE_DIRECTORY = Path(__file__).resolve().parents[1] / "demo_data" / "v2"
+SYNTHETIC_CLIENT_IDS = (CLIENT_ID, "demo-001")
+_STORAGE_AREAS = ("raw", "processed", "curated", "metadata")
 
 
 class DemoError(RuntimeError):
@@ -50,6 +53,75 @@ def _require_demo_identity(document: dict, path: Path) -> None:
         raise DemoError(
             f"Refusing to reuse {path}: it does not belong to {CLIENT_ID}."
         )
+
+
+def _require_reset_target(target: Path, parent: Path) -> None:
+    resolved_parent = parent.resolve()
+    resolved_target = target.resolve()
+    if (
+        resolved_target == resolved_parent
+        or resolved_parent not in resolved_target.parents
+    ):
+        raise DemoError(
+            f"Refusing to reset a path outside its synthetic root: {target}"
+        )
+
+
+def _validate_scenario_demo_root(root: Path, client_id: str) -> None:
+    if not root.is_dir():
+        return
+    configurations = list(root.glob("runs/*/configuration.json"))
+    run_directories = list((root / "runs").glob("*"))
+    if run_directories and len(configurations) != len(run_directories):
+        raise DemoError(
+            f"Refusing to reset incomplete scenario demo state at {root}."
+        )
+    for configuration_path in configurations:
+        configuration = _load_json(configuration_path)
+        configured_client = configuration.get("input", {}).get("client_id")
+        if configured_client != client_id:
+            raise DemoError(
+                f"Refusing to reset {root}: {configuration_path} belongs "
+                f"to {configured_client or 'an unknown client'}."
+            )
+
+
+def reset_synthetic_demo(settings: Settings) -> tuple[Path, ...]:
+    """Remove only the fixed current and legacy synthetic demo identities."""
+
+    targets: list[tuple[Path, Path]] = []
+    for area in _STORAGE_AREAS:
+        area_root = settings.storage_root / area
+        for client_id in SYNTHETIC_CLIENT_IDS:
+            target = area_root / client_id
+            _require_reset_target(target, area_root)
+            targets.append((target, area_root))
+
+    output_root = settings.schedule_output_root
+    for client_id in SYNTHETIC_CLIENT_IDS:
+        target = output_root / client_id
+        _require_reset_target(target, output_root)
+        _validate_scenario_demo_root(target, client_id)
+        targets.append((target, output_root))
+
+    for client_id in SYNTHETIC_CLIENT_IDS:
+        identity_path = (
+            settings.storage_root / "metadata" / client_id / "client.json"
+        )
+        if identity_path.is_file():
+            identity = _load_json(identity_path)
+            if identity.get("client_id") != client_id:
+                raise DemoError(
+                    f"Refusing to reset {identity_path}: its client identity "
+                    "does not match its synthetic directory."
+                )
+
+    removed = []
+    for target, _parent in targets:
+        if target.is_dir():
+            shutil.rmtree(target)
+            removed.append(target.resolve())
+    return tuple(removed)
 
 
 def _stage_sources(settings: Settings) -> Path:
@@ -160,9 +232,10 @@ def _existing_state(settings: Settings) -> str:
     return "inspect"
 
 
-def main(settings: Settings | None = None) -> int:
+def main(settings: Settings | None = None, *, reset: bool = False) -> int:
     settings = settings or Settings.from_environment()
     try:
+        removed = reset_synthetic_demo(settings) if reset else ()
         staging_root = _stage_sources(settings)
         phase = _existing_state(settings)
     except (DemoError, OSError) as error:
@@ -175,6 +248,8 @@ def main(settings: Settings | None = None) -> int:
     print(f"Client ID:        {CLIENT_ID}")
     print(f"Observation date: {OBSERVATION_DATE}")
     print(f"Staged evidence:  {staging_root}")
+    if reset:
+        print(f"Synthetic roots reset: {len(removed)}")
 
     if phase == "complete":
         print(f"Demo observation already exists: {SNAPSHOT_ID}")
@@ -209,4 +284,16 @@ def main(settings: Settings | None = None) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    parser = argparse.ArgumentParser(
+        description="Create the fixed DataPlatformUI synthetic observation."
+    )
+    parser.add_argument(
+        "--reset",
+        action="store_true",
+        help=(
+            "Remove only demo-ui and legacy demo-001 synthetic data and "
+            "scenario runs before rebuilding demo-ui."
+        ),
+    )
+    arguments = parser.parse_args()
+    raise SystemExit(main(reset=arguments.reset))

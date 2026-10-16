@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from pathlib import Path
+import sys
 
 from dotenv import load_dotenv
 
@@ -71,6 +72,25 @@ class Settings:
             else self.platform_path.parent / "SchedulePlatform"
         )
         return path.resolve()
+
+    @property
+    def schedule_platform_python(self) -> Path:
+        """Return the interpreter used for isolated SchedulePlatform work."""
+        configured = os.getenv("SCHEDULE_PLATFORM_PYTHON")
+        if configured:
+            path = Path(configured).expanduser()
+            if not path.is_absolute():
+                path = self.schedule_platform_path / path
+            return path.resolve()
+
+        candidates = (
+            self.schedule_platform_path / ".venv" / "Scripts" / "python.exe",
+            self.schedule_platform_path / ".venv" / "bin" / "python",
+        )
+        for candidate in candidates:
+            if candidate.is_file():
+                return candidate.resolve()
+        return Path(sys.executable).resolve()
 
     @property
     def schedule_output_root(self) -> Path:

@@ -33,6 +33,7 @@ SchedulePlatform checkout. Results are written outside DataPlatform storage:
 
 ```dotenv
 SCHEDULE_PLATFORM_PATH=D:\Data Lab\SchedulePlatform
+SCHEDULE_PLATFORM_PYTHON=D:\Data Lab\SchedulePlatform\.venv\Scripts\python.exe
 # SCHEDULE_PLATFORM_OUTPUT_ROOT=D:\path\to\schedule-analysis-output
 ```
 
@@ -288,23 +289,44 @@ created. History is optional and is not required for point-in-time diagnosis.
 ### Scenario planning
 
 The page uses the selected canonical observation as an immutable baseline.
-Set the ranking objective, search bounds, permitted actions, every project's
-priority, protection and movement limit, plus any explicit substitutions or
-targets. Choose **Generate deterministic scenarios** to run SchedulePlatform.
+Set the inclusive calendar-day planning horizon, ranking objective, search
+bounds, permitted actions, every project's priority, protection and movement
+limit, plus any explicit substitutions or targets. The horizon initially uses
+the exact observed schedule bounds; extend it explicitly when scenarios may
+move work later. Choose **Generate deterministic scenarios** to run
+SchedulePlatform.
 
 Each run is saved beneath
 output_root/client_id/runs/run_id with its exact configuration, run record and
 generation result. The page can reopen any saved run belonging to the selected
 client and snapshot. It shows baseline conditions separately from scenario
-feasibility, then compares ranked feasible options. Select an option to inspect
-its resource load against recorded capacity, changed assignments, project and
-task date movement, configured targets and provenance. Planning configuration
-collapses after a successful run and can be reopened from its summary header.
+feasibility, then compares ranked feasible options. The result header records
+the strict 1.1 configuration version, inclusive horizon, bounded-search method,
+candidate and action-depth limits, configuration fingerprint, and engine and
+rule-set versions. Planning-horizon violations are raised above the detailed
+constraint table so the horizon can be extended deliberately. Select an option
+to inspect its resource load against recorded capacity, changed assignments,
+project and task date movement, configured targets and provenance. Planning
+configuration collapses after a successful run and can be reopened from its
+summary header.
+
+SchedulePlatform runs with the interpreter configured by
+`SCHEDULE_PLATFORM_PYTHON`, normally its own `.venv`. Before the form is shown,
+the console asks that interpreter for the SchedulePlatform CLI version. A
+failed check means the scheduling environment or one of its dependencies needs
+to be installed; it does not affect the rest of the console.
 
 The controls currently keep risk disabled. Monte Carlo assumptions and results
 will use the same separate SchedulePlatform boundary when that UI is added.
 Generated schedules are hypothetical options: they are not canonical
 observations, Findings, history, or instructions to update a source system.
+
+The console deliberately exposes only bounded deterministic generation.
+SchedulePlatform's internal CP-SAT classes do not enable a UI option. CP-SAT
+must first publish a V1.1 backend selector, a stable CLI invocation and a
+persisted result schema with solver settings/version and authoritative
+validation evidence. This prevents an in-process or non-persisted solver path
+from bypassing the same review and provenance boundary.
 
 ## 6. Preserve and compare observations
 
@@ -388,6 +410,18 @@ The generated snapshot has normal backend lineage and can be preserved if you
 want to exercise history, although a comparison still requires a second
 observation. Rerunning the command reuses the completed fixed demo. It refuses
 to overwrite any changed files already present beneath `raw/demo-ui`.
+
+For a clean synthetic rebuild after a contract change, run:
+
+```powershell
+.venv\Scripts\python.exe -m services.demo --reset
+```
+
+This removes only `demo-ui` and the legacy `demo-001` synthetic identities
+from local DataPlatform evidence and SchedulePlatform output, then recreates
+`demo-ui` through the normal inspection, assessment and diagnosis workflow.
+Other clients are preserved, and a scenario directory with a mismatched saved
+client identity stops the reset.
 
 ## Troubleshooting
 
