@@ -10,6 +10,63 @@ _SCHEDULE_DOMAIN = ["Baseline", "Scenario"]
 _SCHEDULE_COLORS = ["#94a3b8", "#0284c7"]
 
 
+def planning_horizon_chart(observed_start, observed_finish, start, finish) -> alt.Chart:
+    """Show how the inclusive planning bounds contain the observed schedule."""
+    frame = pd.DataFrame([
+        {"Window": "Planning horizon", "Start": pd.Timestamp(start),
+         "Finish": pd.Timestamp(finish) + pd.Timedelta(1, unit="D")},
+        {"Window": "Observed schedule", "Start": pd.Timestamp(observed_start),
+         "Finish": pd.Timestamp(observed_finish) + pd.Timedelta(1, unit="D")},
+    ])
+    return (
+        alt.Chart(frame).mark_bar(size=16, cornerRadius=3).encode(
+            x=alt.X("Start:T", title=None, axis=alt.Axis(format="%d %b %Y")),
+            x2="Finish:T",
+            y=alt.Y("Window:N", title=None, sort=["Planning horizon", "Observed schedule"]),
+            color=alt.Color("Window:N", legend=None, scale=alt.Scale(
+                domain=["Planning horizon", "Observed schedule"],
+                range=["#cbd5e1", "#0f766e"],
+            )),
+        ).properties(height=70).configure_view(strokeWidth=0)
+    )
+
+
+def project_finish_movement_chart(frame: pd.DataFrame) -> alt.Chart:
+    """Connect baseline and scenario finishes, retaining unchanged projects."""
+    frame = frame.copy()
+    frame["Project label"] = frame["Project"] + " · " + frame["Project ID"]
+    frame.loc[frame["Protection"] == "protected", "Project label"] += " · protected"
+    base = alt.Chart(frame).encode(
+        y=alt.Y("Project label:N", title=None, sort=frame["Project label"].tolist(),
+                axis=alt.Axis(labelLimit=340)),
+        tooltip=[
+            "Project:N", "Project ID:N", "Protection:N",
+            alt.Tooltip("Baseline finish:T", format="%d %b %Y"),
+            alt.Tooltip("Scenario finish:T", format="%d %b %Y"),
+            "Movement (days):Q",
+        ],
+    )
+    connectors = base.mark_rule(color="#94a3b8", strokeWidth=2).encode(
+        x=alt.X("Baseline finish:T", title="Project finish date",
+                axis=alt.Axis(format="%d %b %Y")), x2="Scenario finish:T",
+    )
+    points = base.transform_fold(
+        ["Baseline finish", "Scenario finish"], as_=["Schedule", "Finish"]
+    ).mark_point(size=130, filled=True).encode(
+        x=alt.X("Finish:T"),
+        color=alt.Color("Schedule:N", title=None, scale=alt.Scale(
+            domain=["Baseline finish", "Scenario finish"], range=_SCHEDULE_COLORS,
+        )),
+        shape=alt.Shape("Schedule:N", title=None, scale=alt.Scale(
+            domain=["Baseline finish", "Scenario finish"], range=["circle", "diamond"],
+        )),
+    )
+    return (
+        alt.layer(connectors, points).properties(height=max(140, len(frame) * 40))
+        .configure_view(strokeWidth=0)
+    )
+
+
 def scenario_project_timeline(frame: pd.DataFrame) -> alt.Chart:
     """Compare baseline and selected-scenario project windows."""
 

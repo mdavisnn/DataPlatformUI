@@ -191,9 +191,11 @@ resulting observation from the sidebar.
 - **Scenario planning** creates a strict SchedulePlatform V1.1 configuration
   for the selected snapshot, including an explicit inclusive planning horizon,
   then runs bounded deterministic generation and reads the saved client-scoped
-  result package. Its collapsible configuration gives way
-  to ranked options with separate resource-load, timeline, action and evidence
-  views. Baselines, scenario feasibility and hypothetical outputs remain
+  result package. A compact discussion workspace presents selectable option
+  cards explaining benefits, required changes and trade-offs, with resource-load
+  and project finish-date comparisons. Assumptions can be restored from saved
+  runs; advanced settings, detailed changes and provenance are available on
+  demand. Baselines, scenario feasibility and hypothetical outputs remain
   separate from DataPlatform Findings and history.
 - **Run the lab** presents inspection, assessment and diagnosis as one active
   stage at a time. The first actionable stage opens automatically, while

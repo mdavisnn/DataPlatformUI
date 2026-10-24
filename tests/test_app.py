@@ -875,20 +875,17 @@ def test_scenario_planning_uses_observed_horizon_defaults(
 
     assert not app.exception
     assert app.date_input(
-        key=f"scenario_horizon_start_{snapshot_id}"
+        key=f"scenario_client-001_{snapshot_id}_horizon_start"
     ).value.isoformat() == "2026-01-01"
     assert app.date_input(
-        key=f"scenario_horizon_end_{snapshot_id}"
+        key=f"scenario_client-001_{snapshot_id}_horizon_end"
     ).value.isoformat() == "2026-04-30"
     assert any(
         "The observed baseline spans 01 Jan 2026 to 30 Apr 2026"
         in item.value
         for item in app.caption
     )
-    assert any(
-        "Execution backend: bounded deterministic search" in item.value
-        for item in app.caption
-    )
+    assert not any(item.label == "Candidate limit" for item in app.number_input)
     assert not any(
         "CP-SAT" in item.label
         for item in [*app.selectbox, *app.segmented_control]
@@ -968,6 +965,9 @@ def test_scenario_planning_presents_v1_1_contract_and_horizon_failure(
     app.switch_page("app_pages/scenario_planning.py").run()
 
     assert not app.exception
+    app.session_state[f"scenario_client-001_{snapshot_id}_evidence"] = True
+    app.run()
+    assert not app.exception
     metrics = {metric.label: metric.value for metric in app.metric}
     assert metrics["Config version"] == "1.1"
     assert metrics["Planning horizon"] == "2026-01-01 → 2026-12-31"
@@ -981,7 +981,7 @@ def test_scenario_planning_presents_v1_1_contract_and_horizon_failure(
     )
     assert any(
         "exceeded the configured planning horizon" in item.value
-        for item in app.error
+        for item in app.warning
     )
 
 

@@ -288,31 +288,43 @@ created. History is optional and is not required for point-in-time diagnosis.
 
 ### Scenario planning
 
-The page uses the selected canonical observation as an immutable baseline.
-Set the inclusive calendar-day planning horizon, ranking objective, search
-bounds, permitted actions, every project's priority, protection and movement
-limit, plus any explicit substitutions or targets. The horizon initially uses
-the exact observed schedule bounds; extend it explicitly when scenarios may
-move work later. Choose **Generate deterministic scenarios** to run
-SchedulePlatform.
+The page is a discussion workspace for exploring options with a client. Open
+**Adjust assumptions** to choose what matters most, permitted actions, project
+priorities and movement limits. Protected project dates stay fixed. A visual
+planning horizon shows how the inclusive calendar-day bounds relate to the
+observed schedule; extend it explicitly when options may move work later.
+Resource substitutions and target dates are optional controls. Candidate and
+action-depth limits, plus the assignment-date fallback assumption, are under
+**Advanced settings**. Choose **Generate options** to run SchedulePlatform.
 
 Each run is saved beneath
 output_root/client_id/runs/run_id with its exact configuration, run record and
 generation result. The page can reopen any saved run belonging to the selected
-client and snapshot. It shows baseline conditions separately from scenario
-feasibility, then compares ranked feasible options. The result header records
-the strict 1.1 configuration version, inclusive horizon, bounded-search method,
-candidate and action-depth limits, configuration fingerprint, and engine and
-rule-set versions. Planning-horizon violations are raised above the detailed
-constraint table so the horizon can be extended deliberately. Select an option
-to inspect its resource load against recorded capacity, changed assignments,
-project and task date movement, configured targets and provenance. Planning
-configuration collapses after a successful run and can be reopened from its
-summary header.
+client and snapshot. Selectable option cards explain what improves, what
+changes and the trade-off, preserving the engine's ranking. The first is the
+highest-ranked option found, without claiming a global optimum. Resource
+pressure is measured in overloaded resource-days: each resource over its
+recorded capacity for one calendar day counts once, irrespective of how load
+intervals are split. Missing evidence is labelled as unavailable.
+
+Select an option to inspect **Resource load**, **Finish dates**, or
+**Changes & targets**. The finish-date chart includes unchanged and protected
+projects. **Detailed changes and option comparison** holds the full comparison,
+assignment changes and schedule timelines. **Assumptions and run evidence**
+holds baseline conditions, the strict 1.1 configuration, search accounting,
+fingerprint and engine/rule versions. Unsuccessful runs explain whether the
+baseline needs attention, no change was needed, no feasible option was found,
+or the search reached a limit. Recorded blockers remain available.
+
+**Use these assumptions for a new run** restores the saved goal, horizon,
+project policies, substitutions, targets and advanced settings. A warning
+identifies when your edited draft differs from the saved results still shown.
+Generating saves a new package and collapses the controls. Saved results can
+also be reviewed when the execution environment is unavailable.
 
 SchedulePlatform runs with the interpreter configured by
-`SCHEDULE_PLATFORM_PYTHON`, normally its own `.venv`. Before the form is shown,
-the console asks that interpreter for the SchedulePlatform CLI version. A
+`SCHEDULE_PLATFORM_PYTHON`, normally its own `.venv`. When the generation controls
+are opened, the console asks that interpreter for the SchedulePlatform CLI version. A
 failed check means the scheduling environment or one of its dependencies needs
 to be installed; it does not affect the rest of the console.
 

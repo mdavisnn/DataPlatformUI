@@ -99,7 +99,7 @@ isolated output package. DataPlatformUI reads those saved products and performs
 only presentation transforms.
 
 The command runs through `SCHEDULE_PLATFORM_PYTHON`, normally the scheduling
-repository's own virtual environment. The page first executes the CLI version
+repository's own virtual environment. Opening the generation controls executes the CLI version
 check with the same interpreter, working directory and `PYTHONPATH`, so missing
 scheduling dependencies are reported before a consultant submits the form. The
 UI does not install or import the scheduling engine's solver dependencies.
@@ -111,15 +111,26 @@ settings and authoritative-validation provenance. The current SchedulePlatform
 checkout does not publish those integration contracts, so the UI offers only
 bounded deterministic generation even though internal CP-SAT classes exist.
 
-The planning form is one programmatically collapsible section so generated
-results remain close to the top of the page. Result adapters align baseline and
-scenario resource-load intervals around the periods that changed, identify
-changed assignments and summarise overload and finish-movement effects. These
-are display calculations over the saved package; they do not alter ranking or
-create diagnostic Findings. The result surface also presents the validated 1.1
-contract, horizon, bounded-search limits, configuration fingerprint and saved
-engine/rule versions. Horizon-exceeded constraint evidence is promoted to an
-actionable result-level message.
+The discussion workspace presents selectable option cards with measured
+benefits, required changes and schedule trade-offs. Baseline and scenario
+resource loads share chart scales, and a finish-date movement chart includes
+protected and unchanged projects. Overloaded resource-days merge intervals per
+resource before summing inclusive days, so interval splitting cannot create a
+false improvement. Missing evidence stays unknown. These display transforms do
+not alter engine ranking or create diagnostic Findings.
+
+Assumptions are edited in a collapsible section, with optional boundaries and
+advanced search settings hidden initially. Saved assumptions can be restored
+in full for another run. Draft values and editor seeds are stored separately;
+changing or hiding controls preserves edits. Draft/result differences remain
+visible until another run is generated or the saved assumptions are restored.
+All execution still uses the strict 1.1 configuration and separate CLI.
+
+Detailed changes, baseline conditions, search accounting, the validated 1.1
+contract, configuration fingerprint and engine/rule versions are available on
+demand. Saved results remain reviewable when the backend cannot run. Empty
+results distinguish input-fitness blockers, no change needed, no feasible
+candidate found and bounded-search truncation, with factual next steps.
 
 Scenario packages are keyed to one client and source snapshot but are not
 written into DataPlatform storage. They are hypothetical planning artefacts,

@@ -83,7 +83,8 @@ def _settings(tmp_path, monkeypatch):
         "SCHEDULE_PLATFORM_OUTPUT_ROOT", str(tmp_path / "scenario-output")
     )
     monkeypatch.delenv("DATA_PLATFORM_STORAGE_ROOT", raising=False)
-    monkeypatch.delenv("SCHEDULE_PLATFORM_PYTHON", raising=False)
+    # Keep the developer's .env interpreter out of synthetic CLI fixtures.
+    monkeypatch.setenv("SCHEDULE_PLATFORM_PYTHON", sys.executable)
     return Settings.from_environment()
 
 
@@ -136,6 +137,7 @@ def test_schedule_platform_python_prefers_its_own_environment(
     tmp_path, monkeypatch,
 ):
     settings = _settings(tmp_path, monkeypatch)
+    monkeypatch.delenv("SCHEDULE_PLATFORM_PYTHON", raising=False)
     interpreter = (
         settings.schedule_platform_path
         / ".venv"
